@@ -1,3 +1,5 @@
+use termiku::pty::pty;
+
 fn main() {
-    println!("Hello, world!");
+    pty();
 }
