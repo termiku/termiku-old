@@ -1,4 +1,4 @@
-use libc::c_int;
+use libc::{c_int, c_void};
 use libc::{close, openpty};
 
 use std::fs::File;
@@ -61,6 +61,7 @@ impl FdPtyPair {
                     return Err(std::io::Error::last_os_error());
                 }
                 close(self.master);
+                libc::ioctl(self.slave, libc::TIOCSCTTY, 0 as *const c_void);
                 close(self.slave);
                 libc::signal(libc::SIGCHLD, libc::SIG_DFL);
                 libc::signal(libc::SIGHUP, libc::SIG_DFL);
