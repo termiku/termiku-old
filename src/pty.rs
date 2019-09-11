@@ -63,12 +63,6 @@ impl FdPtyPair {
                 close(self.master);
                 libc::ioctl(self.slave, libc::TIOCSCTTY, 0 as *const c_void);
                 close(self.slave);
-                libc::signal(libc::SIGCHLD, libc::SIG_DFL);
-                libc::signal(libc::SIGHUP, libc::SIG_DFL);
-                libc::signal(libc::SIGINT, libc::SIG_DFL);
-                libc::signal(libc::SIGQUIT, libc::SIG_DFL);
-                libc::signal(libc::SIGTERM, libc::SIG_DFL);
-                libc::signal(libc::SIGALRM, libc::SIG_DFL);
                 Ok(())
             });
         }
