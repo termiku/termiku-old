@@ -61,7 +61,7 @@ impl FdPtyPair {
                     return Err(std::io::Error::last_os_error());
                 }
                 close(self.ptmx);
-                libc::ioctl(self.pts, libc::TIOCSCTTY, 0 as *const c_void);
+                libc::ioctl(self.pts, libc::TIOCSCTTY, ptr::null::<c_void>());
                 close(self.pts);
                 Ok(())
             });
