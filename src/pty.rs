@@ -7,37 +7,15 @@ use mio::{Poll, PollOpt, Ready, Token};
 
 use std::fs::File;
 use std::io;
-use std::io::Read;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::os::unix::{io::FromRawFd, process::CommandExt};
 use std::process::{Child, Command, Stdio};
 use std::ptr;
 
-pub fn pty(program: &str, args: &[&str]) {
+pub fn spawn_ptied_command(program: &str, args: &[&str]) -> PtiedCommand {
     let pty_pair = FdPtyPair::open_pty().unwrap();
     println!("ptmx {}, pts {}", pty_pair.ptmx, pty_pair.pts);
-    let mut comm = pty_pair.spawn_process(program, args).unwrap();
-
-    let size: usize = 16;
-
-    let mut buff = vec![0; size];
-
-    loop {
-        match comm.io.read(&mut buff) {
-            Ok(amount) => {
-                let result = String::from_utf8_lossy(&buff[0..amount]);
-                println!("{}", result);
-                if amount != size {
-                    println!("sleeping");
-                    std::thread::sleep(std::time::Duration::from_millis(500));
-                }
-            }
-            Err(_) => {
-                println!("sleeping");
-                std::thread::sleep(std::time::Duration::from_millis(500));
-            }
-        }
-    }
+    pty_pair.spawn_process(program, args).unwrap()
 }
 
 struct FdPtyPair {
@@ -66,7 +44,7 @@ impl FdPtyPair {
     }
 }
 
-struct PtiedCommand {
+pub struct PtiedCommand {
     pub child: Child,
     pub io: File,
 }
@@ -135,7 +113,9 @@ impl Evented for PtiedCommand {
     }
 }
 
-// i'm trying stuff, got from alacritty, should try without ?
+// Got from alacritty, not sure if the impl is correct
+// (propably) makes the fd non blocking, so that it can returns "WouldBlock" when there's no more data
+// This is needed so that when polling the fd with mio, we know when to stop
 unsafe fn set_nonblocking(fd: RawFd) {
     use libc::{fcntl, F_GETFL, F_SETFL, O_NONBLOCK};
 

@@ -1,5 +1,5 @@
-use termiku::pty::pty;
+use termiku::bridge::spawn_process;
 
 fn main() {
-    pty("ping", &["8.8.8.8"]);
+    spawn_process("ping", &["8.8.8.8"]);
 }
