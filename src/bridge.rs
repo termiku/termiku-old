@@ -1,10 +1,10 @@
-use crate::pty::spawn_ptied_command;
+use crate::pty;
 use mio::{Events, Poll, PollOpt, Ready, Token};
 use std::fs::File;
 use std::io::Read;
 
 pub fn spawn_process(program: &str, args: &[&str]) {
-    let mut comm = spawn_ptied_command(program, args);
+    let mut comm = pty::spawn_process(program, args).unwrap();
 
     let poll = Poll::new().unwrap();
     let mut events = Events::with_capacity(1024);
@@ -14,10 +14,9 @@ pub fn spawn_process(program: &str, args: &[&str]) {
 
     loop {
         poll.poll(&mut events, None).unwrap();
-        println!("Got event!");
         for event in &events {
             if event.token() == Token(0) && event.readiness().is_readable() {
-                read_and_print(&mut comm.io, &mut buffer);
+                read_and_print(&mut comm.pty, &mut buffer);
             }
         }
     }
