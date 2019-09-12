@@ -9,7 +9,7 @@ use std::ptr;
 
 pub fn pty() {
     let pty_pair = open_pty().unwrap();
-    println!("master {}, slave {}", pty_pair.master, pty_pair.slave);
+    println!("ptmx {}, pts {}", pty_pair.ptmx, pty_pair.pts);
     let mut comm = pty_pair.prepare_process("ping", &["8.8.8.8"]).unwrap();
 
     let size: usize = 16;
@@ -35,8 +35,8 @@ pub fn pty() {
 }
 
 struct FdPtyPair {
-    pub master: c_int,
-    pub slave: c_int,
+    pub ptmx: c_int,
+    pub pts: c_int,
 }
 
 struct PtiedCommand {
@@ -48,11 +48,11 @@ impl FdPtyPair {
     fn prepare_process(self, program: &str, args: &[&str]) -> std::io::Result<PtiedCommand> {
         let mut command = Command::new(program);
         command.args(args);
-        command.stdin(unsafe { Stdio::from_raw_fd(self.slave) });
-        command.stderr(unsafe { Stdio::from_raw_fd(self.slave) });
-        command.stdout(unsafe { Stdio::from_raw_fd(self.slave) });
+        command.stdin(unsafe { Stdio::from_raw_fd(self.pts) });
+        command.stderr(unsafe { Stdio::from_raw_fd(self.pts) });
+        command.stdout(unsafe { Stdio::from_raw_fd(self.pts) });
 
-        let master_fd = self.master;
+        let ptmx_fd = self.ptmx;
 
         unsafe {
             command.pre_exec(move || {
@@ -60,9 +60,9 @@ impl FdPtyPair {
                 if err == -1 {
                     return Err(std::io::Error::last_os_error());
                 }
-                close(self.master);
-                libc::ioctl(self.slave, libc::TIOCSCTTY, 0 as *const c_void);
-                close(self.slave);
+                close(self.ptmx);
+                libc::ioctl(self.pts, libc::TIOCSCTTY, 0 as *const c_void);
+                close(self.pts);
                 Ok(())
             });
         }
@@ -70,11 +70,11 @@ impl FdPtyPair {
         match command.spawn() {
             Ok(child) => {
                 unsafe {
-                    set_nonblocking(master_fd);
+                    set_nonblocking(ptmx_fd);
                 }
                 Ok(PtiedCommand {
                     child,
-                    io: unsafe { File::from_raw_fd(master_fd) },
+                    io: unsafe { File::from_raw_fd(ptmx_fd) },
                 })
             }
             Err(_) => Err(std::io::Error::last_os_error()),
@@ -83,12 +83,12 @@ impl FdPtyPair {
 }
 
 fn open_pty() -> Result<FdPtyPair, ()> {
-    let mut master: c_int = 0;
-    let mut slave: c_int = 0;
+    let mut ptmx: c_int = 0;
+    let mut pts: c_int = 0;
     let res = unsafe {
         openpty(
-            &mut master,
-            &mut slave,
+            &mut ptmx,
+            &mut pts,
             ptr::null_mut(),
             ptr::null_mut(),
             ptr::null_mut(),
@@ -97,7 +97,7 @@ fn open_pty() -> Result<FdPtyPair, ()> {
     if res == -1 {
         Err(())
     } else {
-        Ok(FdPtyPair { master, slave })
+        Ok(FdPtyPair { ptmx, pts })
     }
 }
 
