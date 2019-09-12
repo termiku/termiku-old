@@ -1,16 +1,22 @@
-use libc::{c_int, c_void};
+use libc::c_void;
 use libc::{close, openpty};
 
+use mio::unix::EventedFd;
+use mio::Evented;
+use mio::{Poll, PollOpt, Ready, Token};
+
 use std::fs::File;
+use std::io;
 use std::io::Read;
+use std::os::unix::io::{AsRawFd, RawFd};
 use std::os::unix::{io::FromRawFd, process::CommandExt};
 use std::process::{Child, Command, Stdio};
 use std::ptr;
 
-pub fn pty() {
-    let pty_pair = open_pty().unwrap();
+pub fn pty(program: &str, args: &[&str]) {
+    let pty_pair = FdPtyPair::open_pty().unwrap();
     println!("ptmx {}, pts {}", pty_pair.ptmx, pty_pair.pts);
-    let mut comm = pty_pair.prepare_process("ping", &["8.8.8.8"]).unwrap();
+    let mut comm = pty_pair.spawn_process(program, args).unwrap();
 
     let size: usize = 16;
 
@@ -35,8 +41,29 @@ pub fn pty() {
 }
 
 struct FdPtyPair {
-    pub ptmx: c_int,
-    pub pts: c_int,
+    pub ptmx: RawFd,
+    pub pts: RawFd,
+}
+
+impl FdPtyPair {
+    fn open_pty() -> Result<Self, ()> {
+        let mut ptmx: RawFd = 0;
+        let mut pts: RawFd = 0;
+        let res = unsafe {
+            openpty(
+                &mut ptmx,
+                &mut pts,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                ptr::null_mut(),
+            )
+        };
+        if res == -1 {
+            Err(())
+        } else {
+            Ok(FdPtyPair { ptmx, pts })
+        }
+    }
 }
 
 struct PtiedCommand {
@@ -45,7 +72,7 @@ struct PtiedCommand {
 }
 
 impl FdPtyPair {
-    fn prepare_process(self, program: &str, args: &[&str]) -> std::io::Result<PtiedCommand> {
+    fn spawn_process(self, program: &str, args: &[&str]) -> std::io::Result<PtiedCommand> {
         let mut command = Command::new(program);
         command.args(args);
         command.stdin(unsafe { Stdio::from_raw_fd(self.pts) });
@@ -82,27 +109,34 @@ impl FdPtyPair {
     }
 }
 
-fn open_pty() -> Result<FdPtyPair, ()> {
-    let mut ptmx: c_int = 0;
-    let mut pts: c_int = 0;
-    let res = unsafe {
-        openpty(
-            &mut ptmx,
-            &mut pts,
-            ptr::null_mut(),
-            ptr::null_mut(),
-            ptr::null_mut(),
-        )
-    };
-    if res == -1 {
-        Err(())
-    } else {
-        Ok(FdPtyPair { ptmx, pts })
+impl Evented for PtiedCommand {
+    fn register(
+        &self,
+        poll: &Poll,
+        token: Token,
+        interest: Ready,
+        opts: PollOpt,
+    ) -> io::Result<()> {
+        EventedFd(&self.io.as_raw_fd()).register(poll, token, interest, opts)
+    }
+
+    fn reregister(
+        &self,
+        poll: &Poll,
+        token: Token,
+        interest: Ready,
+        opts: PollOpt,
+    ) -> io::Result<()> {
+        EventedFd(&self.io.as_raw_fd()).reregister(poll, token, interest, opts)
+    }
+
+    fn deregister(&self, poll: &Poll) -> io::Result<()> {
+        EventedFd(&self.io.as_raw_fd()).deregister(poll)
     }
 }
 
-// i'm trying stuff
-unsafe fn set_nonblocking(fd: c_int) {
+// i'm trying stuff, got from alacritty, should try without ?
+unsafe fn set_nonblocking(fd: RawFd) {
     use libc::{fcntl, F_GETFL, F_SETFL, O_NONBLOCK};
 
     let res = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);

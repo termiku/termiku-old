@@ -1,5 +1,5 @@
 use termiku::pty::pty;
 
 fn main() {
-    pty();
+    pty("ping", &["8.8.8.8"]);
 }
