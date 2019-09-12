@@ -74,16 +74,8 @@ pub fn spawn_process(program: &str, args: &[&str]) -> io::Result<ProcessWithPty>
 
     let child = command.spawn()?;
 
-    // Got from alacritty, not sure if the impl is correct
-    // (propably) makes the fd non blocking, so that it can returns "WouldBlock" when there's no more data
-    // This is needed so that when polling the fd with mio, we know when to stop
     unsafe {
-        use libc::{fcntl, F_GETFL, F_SETFL, O_NONBLOCK};
-
-        let fl = fcntl(fds.ptmx, F_GETFL, 0);
-        let res = fcntl(fds.ptmx, F_SETFL, fl | O_NONBLOCK);
-
-        assert_eq!(res, 0);
+        set_nonblocking(fds.ptmx);
     }
 
     Ok(ProcessWithPty {
@@ -120,4 +112,16 @@ impl Evented for ProcessWithPty {
 
 fn set_envs(command: &mut Command) {
     command.env("TERM", "dumb");
+}
+
+// Got from alacritty, not sure if the impl is correct
+// (propably) makes the fd non blocking, so that it can returns "WouldBlock" when there's no more data
+// This is needed so that when polling the fd with mio, we know when to stop
+pub unsafe fn set_nonblocking(fd: RawFd) {
+    use libc::{fcntl, F_GETFL, F_SETFL, O_NONBLOCK};
+
+    let fl = fcntl(fd, F_GETFL, 0);
+    let res = fcntl(fd, F_SETFL, fl | O_NONBLOCK);
+
+    assert_eq!(res, 0);
 }
