@@ -1,3 +1,5 @@
+use termiku::bridge::spawn_process;
+
 fn main() {
-    println!("Hello, world!");
+    spawn_process("ping", &["8.8.8.8"]);
 }
