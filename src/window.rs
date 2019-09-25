@@ -1,17 +1,21 @@
 // A good lot of this code is taken from glium/examples/image.rs
 // For now, we only want a window capable of receiving keyboard inputs as a basis for future work
+use crate::bridge::spawn_process;
+
+use mio_extras::channel::Sender;
 
 use glium::{glutin, Surface};
 
 use std::io::Cursor;
 
-use glium::glutin::event::{Event, StartCause};
+use glium::glutin::event::{Event, KeyboardInput, StartCause, WindowEvent};
 use glium::glutin::event_loop::{ControlFlow, EventLoop};
 use std::time::{Duration, Instant};
 
 use glium::index::PrimitiveType;
 
-pub fn window() {
+pub fn window(program: &str, args: &[&str]) {
+    let process_sender = spawn_process(program, args);
     let events_loop = EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new()
         .with_inner_size(glutin::dpi::LogicalSize::new(1280.0, 720.0))
@@ -122,8 +126,11 @@ pub fn window() {
         let mut action = Action::Continue;
         for event in events {
             match event {
-                glutin::event::Event::WindowEvent { event, .. } => match event {
-                    glutin::event::WindowEvent::CloseRequested => action = Action::Stop,
+                Event::WindowEvent { event, .. } => match event {
+                    WindowEvent::CloseRequested => action = Action::Stop,
+                    WindowEvent::ReceivedCharacter(input) => {
+                        send_char_to_process(&process_sender, *input);
+                    }
                     _ => (),
                 },
                 _ => (),
@@ -181,4 +188,8 @@ where
             Action::Stop => *control_flow = ControlFlow::Exit,
         }
     })
+}
+
+fn send_char_to_process(process: &Sender<char>, character: char) {
+    process.send(character).unwrap();
 }

@@ -7,5 +7,6 @@ edition = "2018"
 [dependencies]
 libc = "0.2.62"
 mio = "0.6"
+mio-extras = "2.0.5"
 glium = "0.26.0-alpha3"
 image = "0.22.2"
