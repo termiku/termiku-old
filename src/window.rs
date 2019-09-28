@@ -29,9 +29,7 @@ pub fn window(program: &str, args: &[&str]) {
     let context_builder = glutin::ContextBuilder::new();
     let display = glium::Display::new(window_builder, context_builder, &events_loop).unwrap();
 
-    let font_data = include_bytes!(
-        "/home/shinysaana/.local/share/fonts/Roboto Mono Nerd Font Complete Mono.ttf"
-    );
+    let font_data = include_bytes!("/usr/share/fonts/TTF/DejaVuSans.ttf");
 
     let image = image::load(
         Cursor::new(&include_bytes!("../images/miku.jpg")[..]),
@@ -203,7 +201,7 @@ pub fn window(program: &str, args: &[&str]) {
                     colour: [f32; 4],
                 }
                 implement_vertex!(Vertex, position, tex_coords, colour);
-                let colour = [0.5, 0.5, 0.5, 1.0];
+                let colour = [0.0, 0.0, 0.0, 1.0];
                 let (screen_width, screen_height) = {
                     let (w, h) = display.get_framebuffer_dimensions();
                     (w as f32, h as f32)
@@ -280,15 +278,15 @@ pub fn window(program: &str, args: &[&str]) {
         // drawing a frame
         let mut target = display.draw();
         target.clear_color(0.0, 0.0, 0.0, 0.0);
-        // target
-        //     .draw(
-        //         &vertex_buffer,
-        //         &index_buffer,
-        //         &program,
-        //         &uniforms,
-        //         &Default::default(),
-        //     )
-        //     .unwrap();
+        target
+            .draw(
+                &vertex_buffer,
+                &index_buffer,
+                &program,
+                &uniforms,
+                &Default::default(),
+            )
+            .unwrap();
         target
             .draw(
                 &char_vertex_buffer,
