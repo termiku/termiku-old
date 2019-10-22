@@ -29,7 +29,6 @@ use rusttype::gpu_cache::Cache;
 use rusttype::{point, vector, Font, Scale};
 
 pub fn window(program: &str, args: &[&str]) {
-    let process_sender = spawn_process(program, args);
     let events_loop = EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new()
         .with_inner_size(glutin::dpi::LogicalSize::new(1280.0, 720.0))
@@ -41,14 +40,21 @@ pub fn window(program: &str, args: &[&str]) {
         harfbuzz::Blob::new_read_only(include_bytes!("/usr/share/fonts/TTF/DejaVuSans.ttf"));
         
     let font_p = create_harfbuzz_font("/usr/share/fonts/TTF/DejaVuSans.ttf").unwrap();
-    let buffer = create_harfbuzz_buffer("nya");
+    let buffer = create_harfbuzz_buffer("nya éè ▀");
     let buffer_p = buffer.as_ptr();
     
     unsafe {
         harfbuzz_shape(font_p, buffer_p);
+        print_harfbuzz_buffer_info(font_p, buffer_p);
     }
     
+    // Now go look at this to rasterize
+    // https://github.com/tangrams/harfbuzz-example/blob/master/src/freetypelib.cpp#L45
+    
     std::process::exit(0);
+    
+    
+    let process_sender = spawn_process(program, args);
     
     let image = image::load(
         Cursor::new(&include_bytes!("../images/miku.jpg")[..]),

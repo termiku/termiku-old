@@ -40,6 +40,22 @@ pub unsafe fn harfbuzz_shape(font: *mut hb_font_t, buffer: *mut hb_buffer_t) {
     hb_shape(font, buffer, std::ptr::null(), 0);
 }
 
+pub unsafe fn print_harfbuzz_buffer_info(font: *mut hb_font_t, buffer: *mut hb_buffer_t) {
+    let buffer_length: u32 = hb_buffer_get_length(buffer);
+    let glyph_infos_p = hb_buffer_get_glyph_infos(buffer, std::ptr::null_mut());
+    let glyph_infos = std::slice::from_raw_parts(glyph_infos_p, buffer_length as usize);
+    
+    
+    for info in glyph_infos {
+        let gid = info.codepoint;
+        let mut name_buffer = [0i8; 32];
+        let name_buffer_p = name_buffer.as_mut_ptr();
+        
+        hb_font_get_glyph_name(font, gid, name_buffer_p, 32);
+        println!("gid: {}, name: {}", gid, String::from_utf8(name_buffer.iter().map(|&c| c as u8).collect()).unwrap())
+    }
+}
+
 fn blob_from_file(path: &str) -> Blob {
     let data = std::fs::read(path).unwrap();
     let blob = Blob::new_from_arc_vec(Arc::new(data));
