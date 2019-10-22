@@ -1139,6 +1139,7 @@ name = "termiku"
 version = "0.1.0"
 dependencies = [
  "arrayvec 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "freetype 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "glium 0.26.0-alpha3 (registry+https://github.com/rust-lang/crates.io-index)",
  "harfbuzz 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "image 0.22.2 (registry+https://github.com/rust-lang/crates.io-index)",
