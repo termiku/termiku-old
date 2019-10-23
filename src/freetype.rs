@@ -44,17 +44,87 @@ pub fn set_char_size(face: FT_Face) -> FTResult<()> {
     let error = unsafe {
         FT_Set_Char_Size(
             face,
-            1000,
-            1000,
+            3000,
+            3000,
             0,
             0
         )
     };
     
     if error != 0 {
-        println!("Error loading freetype face, code: {}", error);
+        println!("Error setting freetype char size, code: {}", error);
         Err(error)
     } else {
         Ok(())
+    }
+}
+
+pub fn render_glyph(face: FT_Face, glyph_index: u32) -> FTResult<FreeTypeGlyph> {
+    let error = unsafe {
+        FT_Load_Glyph(
+            face,
+            glyph_index,
+            0
+        )
+    };
+    
+    if error != 0 {
+        println!("Error loading glyph, code: {}", error);
+        return Err(error);
+    }
+    
+    let error = unsafe {
+        FT_Render_Glyph(
+            (*face).glyph,
+            FT_Render_Mode_::FT_RENDER_MODE_NORMAL
+        )
+    };
+    
+    if error != 0 {
+        println!("Error rendering glyph, code: {}", error);
+        return Err(error);
+    }
+    
+    let glyph = unsafe {
+        let bitmap = (*(*face).glyph).bitmap;
+            let buffer = std::slice::from_raw_parts(
+                bitmap.buffer,
+                (bitmap.pitch.abs() as u32 * bitmap.rows) as usize
+            ).to_owned();
+            
+            FreeTypeGlyph {
+                buffer,
+                rows: bitmap.rows,
+                pitch: bitmap.pitch.abs() as u32,
+                advance_x: (*(*face).glyph).advance.x,
+                advance_y: (*(*face).glyph).advance.y,
+            }
+        };
+    
+    Ok(glyph)
+}
+
+#[derive(Debug)]
+pub struct FreeTypeGlyph {
+    buffer: Vec<u8>,
+    rows: u32,
+    pitch: u32,
+    advance_x: i64,
+    advance_y: i64
+}
+
+impl FreeTypeGlyph {
+    pub fn print(&self) {
+        let mut iter = self.buffer.chunks(self.pitch as usize);
+        while let Some(row) = iter.next() {
+            for pixel in row {
+                if *pixel < 200 {
+                    print!(" ");
+                } else {
+                    print!("o");
+                }
+            }
+            println!();
+        }
     }
 }

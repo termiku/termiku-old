@@ -35,18 +35,25 @@ pub fn window(program: &str, args: &[&str]) {
         .with_title("mou ikkai");
     let context_builder = glutin::ContextBuilder::new();
     let display = glium::Display::new(window_builder, context_builder, &events_loop).unwrap();
+    
+    let font_path = "/usr/share/fonts/OTF/FiraCode-Regular.otf";
 
-    let mut font_data =
-        harfbuzz::Blob::new_read_only(include_bytes!("/usr/share/fonts/TTF/DejaVuSans.ttf"));
-        
-    let font_p = create_harfbuzz_font("/usr/share/fonts/TTF/DejaVuSans.ttf").unwrap();
-    let buffer = create_harfbuzz_buffer("nya éè ▀");
+    let font_p = create_harfbuzz_font(font_path).unwrap();
+    let buffer = create_harfbuzz_buffer("= nya éè ▀ = >= == >== =>");
     let buffer_p = buffer.as_ptr();
     
     unsafe {
         harfbuzz_shape(font_p, buffer_p);
         print_harfbuzz_buffer_info(font_p, buffer_p);
     }
+    
+    let freetype_lib = init_freetype().unwrap();
+    let freetype_face = new_face(freetype_lib, font_path).unwrap();
+    set_char_size(freetype_face).unwrap();
+    let glyph = render_glyph(freetype_face, 1593).unwrap();
+    println!("{:?}", glyph);
+    println!();
+    glyph.print();
     
     // Now go look at this to rasterize
     // https://github.com/tangrams/harfbuzz-example/blob/master/src/freetypelib.cpp#L45
