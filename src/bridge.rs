@@ -90,5 +90,6 @@ fn process_stdin(ptmx: &mut Pty, buffer: &mut [u8]) {
 fn read_and_print(pty: &mut Pty, buffer: &mut [u8]) {
     while let Ok(amount) = pty.read(buffer) {
         print!("{}", String::from_utf8_lossy(&buffer[0..amount]));
+        io::stdout().flush().unwrap();
     }
 }
