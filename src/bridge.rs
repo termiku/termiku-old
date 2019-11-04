@@ -1,21 +1,31 @@
-use crate::pty;
+use crate::pty::{self, Pty};
 use mio::unix::EventedFd;
-use mio::{Evented, Events, Poll, PollOpt, Ready, Token};
+use mio::{Events, Poll, PollOpt, Ready, Token};
 use mio_extras::channel::{channel, Sender};
-use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
-use std::os::unix::io::{AsRawFd, FromRawFd};
+use std::os::unix::io::RawFd;
 
 const RECEIVER_TOKEN: usize = 0;
 const STDIN_TOKEN: usize = 1;
 const PROCESS_TOKEN: usize = 2;
 
+const STDIN_FD: RawFd = 0;
+
 pub fn spawn_process(program: &str, args: &[&str]) -> Sender<char> {
+    // Set stdin to be nonblocking (which doesn't actually affect epoll's behavior...)
+    // This will disappear later anyway.
     unsafe {
-        pty::set_nonblocking(0);
+        use libc::{F_GETFL, F_SETFL, O_NONBLOCK};
+
+        let flags = libc::fcntl(STDIN_FD, F_GETFL, 0 /* should be ptr::null() but whateves */);
+        let res   = libc::fcntl(STDIN_FD, F_SETFL, flags | O_NONBLOCK);
+
+        assert_eq!(res, 0);
     }
-    let mut stdin = EventedStdin::new();
+
+    // Replaced EventedStdin with EventedFd
+    let mut stdin = EventedFd(&STDIN_FD);
     let mut comm = pty::spawn_process(program, args).unwrap();
     let poll = Poll::new().unwrap();
     let mut events = Events::with_capacity(1024);
@@ -57,7 +67,7 @@ pub fn spawn_process(program: &str, args: &[&str]) -> Sender<char> {
             } else if event.token() == Token(STDIN_TOKEN) && event.readiness().is_readable() {
                 // We're leaving this to control the spawned process,
                 // but this should disappear eventually
-                process_stdin(&mut stdin.stdin, &mut comm.pty, &mut buffer);
+                process_stdin(&mut comm.pty, &mut buffer);
             } else if event.token() == Token(PROCESS_TOKEN) && event.readiness().is_readable() {
                 read_and_print(&mut comm.pty, &mut buffer);
             }
@@ -66,57 +76,19 @@ pub fn spawn_process(program: &str, args: &[&str]) -> Sender<char> {
     sender
 }
 
-fn process_input(input: char, ptmx: &mut File, buffer: &mut [u8]) {
+fn process_input(input: char, ptmx: &mut Pty, buffer: &mut [u8]) {
     ptmx.write_all(input.encode_utf8(buffer).as_bytes())
         .unwrap();
 }
 
-fn process_stdin(stdin: &mut File, ptmx: &mut File, buffer: &mut [u8]) {
-    while let Ok(amount) = stdin.read(buffer) {
+fn process_stdin(ptmx: &mut Pty, buffer: &mut [u8]) {
+    while let Ok(amount) = io::stdin().read(buffer) {
         ptmx.write_all(&buffer[0..amount]).unwrap();
     }
 }
 
-fn read_and_print(file: &mut File, buffer: &mut [u8]) {
-    while let Ok(amount) = file.read(buffer) {
+fn read_and_print(pty: &mut Pty, buffer: &mut [u8]) {
+    while let Ok(amount) = pty.read(buffer) {
         print!("{}", String::from_utf8_lossy(&buffer[0..amount]));
-    }
-}
-
-struct EventedStdin {
-    pub stdin: File,
-}
-
-impl EventedStdin {
-    fn new() -> Self {
-        Self {
-            stdin: unsafe { File::from_raw_fd(0) },
-        }
-    }
-}
-
-impl Evented for EventedStdin {
-    fn register(
-        &self,
-        poll: &Poll,
-        token: Token,
-        interest: Ready,
-        opts: PollOpt,
-    ) -> io::Result<()> {
-        EventedFd(&self.stdin.as_raw_fd()).register(poll, token, interest, opts)
-    }
-
-    fn reregister(
-        &self,
-        poll: &Poll,
-        token: Token,
-        interest: Ready,
-        opts: PollOpt,
-    ) -> io::Result<()> {
-        EventedFd(&self.stdin.as_raw_fd()).reregister(poll, token, interest, opts)
-    }
-
-    fn deregister(&self, poll: &Poll) -> io::Result<()> {
-        EventedFd(&self.stdin.as_raw_fd()).deregister(poll)
     }
 }

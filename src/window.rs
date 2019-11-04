@@ -58,7 +58,7 @@ pub fn window(program: &str, args: &[&str]) {
     // Now go look at this to rasterize
     // https://github.com/tangrams/harfbuzz-example/blob/master/src/freetypelib.cpp#L45
     
-    std::process::exit(0);
+    //std::process::exit(0);
     
     
     let process_sender = spawn_process(program, args);
