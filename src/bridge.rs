@@ -7,13 +7,13 @@ use std::io::{Read, Write};
 use std::os::unix::io::RawFd;
 
 const RECEIVER_TOKEN: usize = 0;
-const STDIN_TOKEN: usize = 1;
-const PROCESS_TOKEN: usize = 2;
+const STDIN_TOKEN:    usize = 1;
+const PROCESS_TOKEN:  usize = 2;
 
 const STDIN_FD: RawFd = 0;
 
 pub fn spawn_process(program: &str, args: &[&str]) -> Sender<char> {
-    // Set stdin to be nonblocking (which doesn't actually affect epoll's behavior...)
+    // Set stdin to be nonblocking
     // This will disappear later anyway.
     unsafe {
         use libc::{F_GETFL, F_SETFL, O_NONBLOCK};
@@ -25,7 +25,7 @@ pub fn spawn_process(program: &str, args: &[&str]) -> Sender<char> {
     }
 
     // Replaced EventedStdin with EventedFd
-    let mut stdin = EventedFd(&STDIN_FD);
+    let stdin = EventedFd(&STDIN_FD);
     let mut comm = pty::spawn_process(program, args).unwrap();
     let poll = Poll::new().unwrap();
     let mut events = Events::with_capacity(1024);
@@ -38,6 +38,7 @@ pub fn spawn_process(program: &str, args: &[&str]) -> Sender<char> {
         PollOpt::edge(),
     )
     .unwrap();
+
     poll.register(
         &stdin,
         Token(STDIN_TOKEN),
@@ -81,6 +82,7 @@ fn process_input(input: char, ptmx: &mut Pty, buffer: &mut [u8]) {
         .unwrap();
 }
 
+// FIXME: This is redundant
 fn process_stdin(ptmx: &mut Pty, buffer: &mut [u8]) {
     while let Ok(amount) = io::stdin().read(buffer) {
         ptmx.write_all(&buffer[0..amount]).unwrap();

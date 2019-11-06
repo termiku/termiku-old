@@ -1,7 +1,5 @@
 use libc;
 
-use mio::{unix::EventedFd, Evented, Poll, PollOpt, Ready, Token};
-
 use std::io;
 use std::mem;
 use std::os::unix::{io::*, process::CommandExt};
@@ -138,14 +136,17 @@ impl Drop for Pty {
     }
 }
 
+use mio::{unix::EventedFd, Evented, Poll, PollOpt, Ready, Token};
+
+
 // FIXME(LunarLambda) Stuff below should probably be moved into a process module.
 
-pub struct ProcessWithPty {
-    pub process: Child,
+pub struct PtyWithProcess {
     pub pty: Pty,
+    pub process: Child,
 }
 
-pub fn spawn_process(program: &str, args: &[&str]) -> io::Result<ProcessWithPty> {
+pub fn spawn_process(program: &str, args: &[&str]) -> io::Result<PtyWithProcess> {
     let pty = Pty::open()?;
     let fds = pty.as_raw_fds();
 
@@ -184,13 +185,13 @@ pub fn spawn_process(program: &str, args: &[&str]) -> io::Result<ProcessWithPty>
 
     let child = command.spawn()?;
 
-    Ok(ProcessWithPty {
+    Ok(PtyWithProcess {
         process: child,
         pty,
     })
 }
 
-impl Evented for ProcessWithPty {
+impl Evented for PtyWithProcess {
     fn register(
         &self,
         poll: &Poll,
