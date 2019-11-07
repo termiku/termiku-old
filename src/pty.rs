@@ -6,6 +6,23 @@ use std::os::unix::{io::*, process::CommandExt};
 use std::process::{Child, Command, Stdio};
 use std::ptr;
 
+/* NOTE(LunarLambda):
+ * As an alternative to the both outdated and uncomfortable "master/slave" terminology,
+ * we've been using the device names (ptmx/pts) so far.
+ * This works well for someone with strong technical knowledge of ptys,
+ * however, it quickly becomes confusing and hides the actual roles of the devices.
+ * It also makes documentation difficult.
+ * 
+ * Some possible alternatives:
+ * 
+ * driver/terminal - Personally my favorite, makes the roles very clear
+ * leader/follower - Is becoming increasingly adopted
+ * parent/child    - Matches existing process terminology (though careful, one-to-one instead of one-to-many relationship!)
+ * host/user       - Similar to Windows? (ConHost)
+ * server/client   - Possible last resort, but not great (personal opinion)
+ */
+
+
 /// A pair of `RawFds` referring to the pseudoterminal multiplexer device (ptmx), and the associated pseudoterminal sub-device (pts).
 #[derive(Clone, Copy, Debug)]
 pub struct RawPtyFds {

@@ -28,7 +28,7 @@ const STDIN_FD: RawFd = 0;
 /// 2. Creates an mio::EventedFd for stdin
 /// 3. Creates a Pty and a Process attached to it
 /// 4. Creates a new mio::Poll
-/// 5. Creates a new mio::channel::<char>
+/// 5. Creates a new mio::channel::\<char\>
 /// 6. Registers EventedFd, Pty, and channel for reading (edge-triggered)
 /// 7. Creates a new thread with the event loop running inside
 /// 8. Returns the Sender part of the channel created in *5.*
