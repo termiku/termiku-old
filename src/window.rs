@@ -28,7 +28,7 @@ use glium::index::PrimitiveType;
 use rusttype::gpu_cache::Cache;
 use rusttype::{point, vector, Font, Scale};
 
-pub fn window(program: &str, args: &[&str]) {
+pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>>) {
     let events_loop = EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new()
         .with_inner_size(glutin::dpi::LogicalSize::new(1280.0, 720.0))
@@ -61,7 +61,7 @@ pub fn window(program: &str, args: &[&str]) {
     //std::process::exit(0);
     
     
-    let process_sender = spawn_process(program, args);
+    let process_sender = spawn_process(program, args, env);
     
     let image = image::load(
         Cursor::new(&include_bytes!("../images/miku.jpg")[..]),

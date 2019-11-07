@@ -1,0 +1,5 @@
+# Environment variables
+[env]
+TERM = "dumb"
+# Test cookie
+TERMIKU = "Hello!"

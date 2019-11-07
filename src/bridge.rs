@@ -4,6 +4,7 @@ use mio::unix::EventedFd;
 use mio::{Events, Poll, PollOpt, Ready, Token};
 use mio_extras::channel::{channel, Sender};
 
+use std::collections::HashMap;
 use std::io;
 use std::io::{Read, Write};
 use std::os::unix::io::RawFd;
@@ -32,7 +33,7 @@ const STDIN_FD: RawFd = 0;
 /// 6. Registers EventedFd, Pty, and channel for reading (edge-triggered)
 /// 7. Creates a new thread with the event loop running inside
 /// 8. Returns the Sender part of the channel created in *5.*
-pub fn spawn_process(program: &str, args: &[&str]) -> Sender<char> {
+pub fn spawn_process(program: &str, args: &[&str], env: &Option<HashMap<String, String>>) -> Sender<char> {
     // 1.
     unsafe {
         use libc::{F_GETFL, F_SETFL, O_NONBLOCK};
@@ -47,7 +48,7 @@ pub fn spawn_process(program: &str, args: &[&str]) -> Sender<char> {
     let stdin = EventedFd(&STDIN_FD);
 
     // 3.
-    let mut comm = pty::spawn_process(program, args).unwrap();
+    let mut comm = pty::spawn_process(program, args, env).unwrap();
 
     // 4.
     let poll = Poll::new().unwrap();
