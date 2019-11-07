@@ -1,5 +1,6 @@
 use libc;
 
+use std::collections::HashMap;
 use std::io;
 use std::mem;
 use std::os::unix::{io::*, process::CommandExt};
@@ -197,7 +198,7 @@ pub struct PtyWithProcess {
     pub process: Child,
 }
 
-pub fn spawn_process(program: &str, args: &[&str]) -> io::Result<PtyWithProcess> {
+pub fn spawn_process(program: &str, args: &[&str], env: &Option<HashMap<String, String>>) -> io::Result<PtyWithProcess> {
     let pty = Pty::open()?;
     let fds = pty.as_raw_fds();
 
@@ -209,7 +210,7 @@ pub fn spawn_process(program: &str, args: &[&str]) -> io::Result<PtyWithProcess>
         .stdout(unsafe { Stdio::from_raw_fd(fds.pts) })
         .stderr(unsafe { Stdio::from_raw_fd(fds.pts) });
 
-    set_envs(&mut command);
+    set_envs(&mut command, env);
 
     unsafe {
         command.pre_exec(move || {
@@ -268,6 +269,8 @@ impl Evented for PtyWithProcess {
     }
 }
 
-fn set_envs(command: &mut Command) {
-    command.env("TERM", "dumb");
+fn set_envs(command: &mut Command, env: &Option<HashMap<String, String>>) {
+    if let Some(envs) = env {
+        command.envs(envs);
+    }
 }

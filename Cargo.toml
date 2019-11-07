@@ -6,15 +6,15 @@ edition = "2018"
 license = "MPL-2.0"
 
 [dependencies]
+arrayvec = "0.5.0"
+clap = { version = "2.33", features = ["color"] }
+freetype = "0.4.1"
+glium = "0.26.0-alpha3"
+harfbuzz = "0.3.1"
+image = "0.22.2"
 libc = "0.2.62"
 mio = "0.6"
 mio-extras = "2.0.5"
-glium = "0.26.0-alpha3"
-image = "0.22.2"
-arrayvec = "0.5.0"
-harfbuzz = "0.3.1"
-freetype = "0.4.1"
-
-[dependencies.rusttype]
-version = "0.8.1"
-features = ["gpu_cache"]
+rusttype = { version = "0.8.1", features = ["gpu_cache"] }
+serde = { version = "1.0", features  = ["derive"] }
+toml = "0.5"
