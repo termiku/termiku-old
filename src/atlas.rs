@@ -1,4 +1,6 @@
-// mod atlas
+use std::borrow::Cow;
+
+use glium::Display;
 
 // FIXME: This should be defined somewhere else.
 type GlyphId = u32;
@@ -21,6 +23,38 @@ pub struct Rect {
     pub size: RectSize,
 }
 
+impl Rect {
+    // min
+    pub fn top_left(&self) -> Point {
+        self.pos
+    }
+    
+    pub fn top_right(&self) -> Point {
+        let Point { x, y } = self.pos;
+        Point {
+            x: x + self.size.width,
+            y
+        }        
+    }
+    
+    // max
+    pub fn bottom_right(&self) -> Point {
+        let Point { x, y } = self.pos;
+        Point {
+            x,
+            y: y + self.size.height
+        }  
+    }
+    
+    pub fn bottom_left(&self) -> Point {
+        let Point { x, y } = self.pos;
+        Point {
+            x: x + self.size.width,
+            y: y + self.size.height
+        }  
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Space {
     Empty,
@@ -34,16 +68,27 @@ struct SpriteSlot {
 }
 
 pub struct Atlas {
+    pub atlas: glium::texture::texture2d::Texture2d,
     size:   RectSize,
     slots:  Vec<SpriteSlot>,
 }
 
 impl Atlas {
-    pub fn new(size: RectSize) -> Self {
+    pub fn new(display: &Display, size: RectSize) -> Self {
         Atlas {
+            atlas: glium::texture::Texture2d::with_format(
+                display,
+                glium::texture::RawImage2d {
+                    data: Cow::Owned(vec![0u8; size.width as usize * size.height as usize]),
+                    width: size.width,
+                    height: size.height,
+                    format: glium::texture::ClientFormat::U8,
+                },
+                glium::texture::UncompressedFloatFormat::U8,
+                glium::texture::MipmapsOption::NoMipmap,
+            ).unwrap(),
             size,
             slots: vec![],
-            //pixels: vec![0; size.width * size.height]
         }
     }
 
@@ -70,8 +115,8 @@ impl Atlas {
             let after_y = slot.rect.pos.y + slot.rect.size.height;
 
             // Check if we have enough space after the last slot
-            if (after_x + size.width)  < self.size.width
-            && (after_y + size.height) < self.size.height {
+            if (after_x + size.width)  <= self.size.width
+            && (after_y + size.height) <= self.size.height {
                 return Some(Point { x: after_x, y: slot.rect.pos.y });
             // Let's try moving to a new line. We don't do any vertical packing and just use
             // The largest slot on the last line.
@@ -82,7 +127,7 @@ impl Atlas {
 
                 let after_y_v = slot_v.rect.pos.y + slot_v.rect.size.height;
 
-                if (after_y_v + size.height) < self.size.height {
+                if (after_y_v + size.height) <= self.size.height {
                     return Some(Point { x: 0, y: after_y_v });
                 }
             }
@@ -90,6 +135,24 @@ impl Atlas {
 
         return None;
     }
+    
+    fn write_to_texture(&mut self, rect: Rect, data: &[u8]) {
+        self.atlas.main_level().write(
+                    glium::Rect {
+                        left: rect.top_left().x,
+                        bottom: rect.top_left().y,
+                        width: rect.size.width,
+                        height: rect.size.height,
+                    },
+                    glium::texture::RawImage2d {
+                        data: Cow::Borrowed(data),
+                        width: rect.size.width,
+                        height: rect.size.height,
+                        format: glium::texture::ClientFormat::U8,
+                    },
+                );
+    }
+
 
     /*
     /// Writes a vector of pixels to the Atlas according to the specified Rectangle.
@@ -114,34 +177,46 @@ impl Atlas {
     /// Tries inserting a Sprite with the specified GlyphId into the Atlas.
     /// Returns an Option containing the coordinates and size of the sprite in the atlas,
     /// or None if insertion failed.
-    pub fn insert(&mut self, size: RectSize, gid: GlyphId) -> Option<Point> {
+    pub fn insert(&mut self, size: RectSize, gid: GlyphId, data: &[u8]) -> Option<Point> {
         // Check we don't already have this glyph.
-        if self.slots.iter().any(|s| s.space == Space::Filled(gid)) {
-            return None;
+        if let Some(rect) = self.get(gid) {
+            return Some(rect.pos);
         }
+        
+        let mut to_be_returned: Option<Point> = None;
+        let mut rect_to_update: Option<Rect> = None;
 
         // If we can find a matching slot, simply reuse that.
         if let Some(slot) = self.find_empty_slot(size) {
             slot.rect.size = size;
             slot.space = Space::Filled(gid);
-            // self.write_pixels(&slot.rect, sprite.pixels)
-            return Some(slot.rect.pos);
+            
+            rect_to_update = Some(slot.rect);
+            to_be_returned = Some(slot.rect.pos);
         // Otherwise, we have to look for free space.
         } else if let Some(pos) = self.find_open_slot_space(size) {
+            let rect = Rect {
+                pos,
+                size
+            };
             let slot = SpriteSlot {
-                rect: Rect {
-                    pos,
-                    size
-                },
+                rect,
                 space: Space::Filled(gid)
             };
-
+            
             self.slots.push(slot);
-            return Some(pos);
-        // No space
-        } else {
-            return None;
+            
+            rect_to_update = Some(rect);
+            to_be_returned = Some(pos);
+
         }
+        // else, no space
+        
+        if let Some(rect) = rect_to_update {
+            self.write_to_texture(rect, data);
+        }
+        
+        to_be_returned
     }
 
     /// Finds the slot associated with the glyph id.

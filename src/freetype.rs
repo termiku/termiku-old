@@ -3,6 +3,8 @@ use std::ffi::CString;
 use harfbuzz::sys::*;
 use harfbuzz::*;
 
+use crate::atlas::{Rect, RectSize};
+
 type FTResult<T> = Result<T, FT_Error>;
 
 pub fn init_freetype() -> FTResult<FT_Library> {
@@ -93,6 +95,7 @@ pub fn render_glyph(face: FT_Face, glyph_index: u32) -> FTResult<FreeTypeGlyph> 
             ).to_owned();
             
             FreeTypeGlyph {
+                id: glyph_index,
                 buffer,
                 rows: bitmap.rows,
                 pitch: bitmap.pitch.abs() as u32,
@@ -106,6 +109,7 @@ pub fn render_glyph(face: FT_Face, glyph_index: u32) -> FTResult<FreeTypeGlyph> 
 
 #[derive(Debug)]
 pub struct FreeTypeGlyph {
+    id: u32,
     buffer: Vec<u8>,
     rows: u32,
     pitch: u32,
@@ -126,5 +130,16 @@ impl FreeTypeGlyph {
             }
             println!();
         }
+    }
+    
+    pub fn size(&self) -> RectSize {
+        RectSize {
+            width: self.pitch,
+            height: self.rows
+        }
+    }
+    
+    pub fn data(&self) -> &[u8] {
+        &self.buffer
     }
 }

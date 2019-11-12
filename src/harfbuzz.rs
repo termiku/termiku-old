@@ -56,6 +56,14 @@ pub unsafe fn print_harfbuzz_buffer_info(font: *mut hb_font_t, buffer: *mut hb_b
     }
 }
 
+pub unsafe fn get_buffer_glyph(buffer: *mut hb_buffer_t) -> Vec<u32> {
+    let buffer_length: u32 = hb_buffer_get_length(buffer);
+    let glyph_infos_p = hb_buffer_get_glyph_infos(buffer, std::ptr::null_mut());
+    let glyph_infos = std::slice::from_raw_parts(glyph_infos_p, buffer_length as usize);
+    
+    glyph_infos.iter().map(|i| i.codepoint).collect()
+}
+
 fn blob_from_file(path: &str) -> Blob {
     let data = std::fs::read(path).unwrap();
     let blob = Blob::new_from_arc_vec(Arc::new(data));
