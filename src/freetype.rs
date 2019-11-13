@@ -107,6 +107,17 @@ pub fn render_glyph(face: FT_Face, glyph_index: u32) -> FTResult<FreeTypeGlyph> 
     Ok(glyph)
 }
 
+pub fn render_glyphs(face: FT_Face, glyphs: &[u32]) -> FTResult<Vec<FreeTypeGlyph>> {
+    let mut results: Vec<FreeTypeGlyph> = vec![];
+    
+    for &glyph in glyphs.iter() {
+        let result = render_glyph(face, glyph)?;
+        results.push(result);
+    }
+    
+    Ok(results)
+}
+
 #[derive(Debug)]
 pub struct FreeTypeGlyph {
     id: u32,

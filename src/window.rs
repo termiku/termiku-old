@@ -2,6 +2,7 @@
 // For now, we only want a window capable of receiving keyboard inputs as a basis for future work
 use crate::bridge::spawn_process;
 use crate::atlas::{Atlas, RectSize};
+use crate::draw::Drawer;
 
 use mio_extras::channel::Sender;
 
@@ -38,6 +39,8 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
     let display = glium::Display::new(window_builder, context_builder, &events_loop).unwrap();
     
     let font_path = "/usr/share/fonts/OTF/FiraCode-Regular.otf";
+    
+    let drawer = Drawer::new(&display, font_path);    
 
     let font_p = create_harfbuzz_font(font_path).unwrap();
     let mut buffer = create_harfbuzz_buffer("abcdefghijklmnopqrstuvwxyz");
@@ -68,9 +71,6 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
     .to_rgba();
     let dpi_factor = display.gl_window().window().hidpi_factor();
     let (cache_width, cache_height) = (512 * dpi_factor as u32, 512 * dpi_factor as u32);
-    let mut cache = Cache::builder()
-        .dimensions(cache_width, cache_height)
-        .build();
 
     let char_program = program!(
     &display,

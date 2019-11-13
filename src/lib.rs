@@ -10,3 +10,4 @@ pub mod freetype;
 pub mod harfbuzz;
 pub mod config;
 pub mod atlas;
+pub mod draw;
