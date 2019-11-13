@@ -6,7 +6,7 @@ use crate::draw::Drawer;
 
 use mio_extras::channel::Sender;
 
-use glium::{glutin, Surface};
+use glium::{glutin, Surface, Frame};
 
 use std::io::Cursor;
 

@@ -150,6 +150,10 @@ impl FreeTypeGlyph {
         }
     }
     
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+    
     pub fn data(&self) -> &[u8] {
         &self.buffer
     }
