@@ -186,122 +186,17 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
     
     for glyph_id in glyph_buffer.into_iter() {
         let glyph = render_glyph(freetype_face, glyph_id).unwrap();
-        // println!("{:?}", glyph);
-        // println!("{:?}", atlas.insert(glyph.size(), glyph_id, glyph.data()).unwrap());
     }
     
     let mut drawer = Drawer::new(&display, font_path);
     
     let lines = vec![
-        CharacterLine::from_string("abcdefghijklmnopqrstuvwxyz12345678901234567890234567890".to_owned()),
-        CharacterLine::from_string("def".to_owned()),
-        CharacterLine::from_string("ghi".to_owned())
+        // CharacterLine::from_string("abcdefghijklmnopqrstuvwxyz12345678901234567890234567890".to_owned()),
+        CharacterLine::from_string("abc=>a<>a!=a==a===a<=>a>=".to_owned()),
+        // CharacterLine::from_string("ghi".to_owned())
     ];
 
     start_loop(events_loop, move |events| {
-        // let a_glyph = font.glyph('R');
-        // let a_glyph_positionned = a_glyph
-        //     .scaled(Scale::uniform(24.0 * dpi_factor as f32))
-        //     .positioned(point(50.0, 50.0));
-        // cache.queue_glyph(0, a_glyph_positionned.clone());
-        // let glyphs = vec![a_glyph_positionned];
-        // cache
-        //     .cache_queued(|rect, data| {
-        //         char_cache_tex.main_level().write(
-        //             glium::Rect {
-        //                 left: rect.min.x,
-        //                 bottom: rect.min.y,
-        //                 width: rect.width(),
-        //                 height: rect.height(),
-        //             },
-        //             glium::texture::RawImage2d {
-        //                 data: Cow::Borrowed(data),
-        //                 width: rect.width(),
-        //                 height: rect.height(),
-        //                 format: glium::texture::ClientFormat::U8,
-        //             },
-        //         );
-        //     })
-        //     .unwrap();
-        // let (char_vertex_buffer, char_uniforms) = {
-        //     let sampler = char_cache_tex
-        //         .sampled()
-        //         .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest);
-        //     let char_uniforms = uniform! {
-        //         tex: sampler
-        //     };
-        //     let char_vertex_buffer = {
-        //         #[derive(Copy, Clone)]
-        //         struct Vertex {
-        //             position: [f32; 2],
-        //             tex_coords: [f32; 2],
-        //             colour: [f32; 4],
-        //         }
-        //         implement_vertex!(Vertex, position, tex_coords, colour);
-        //         let colour = [0.0, 0.0, 0.0, 1.0];
-        //         let (screen_width, screen_height) = {
-        //             let (w, h) = display.get_framebuffer_dimensions();
-        //             (w as f32, h as f32)
-        //         };
-        //         let origin = point(0.0, 0.0);
-        //         let vertices: Vec<Vertex> = glyphs
-        //             .iter()
-        //             .flat_map(|g| {
-        //                 if let Ok(Some((uv_rect, screen_rect))) = cache.rect_for(0, g) {
-        //                     let gl_rect = rusttype::Rect {
-        //                         min: origin
-        //                             + (vector(
-        //                                 screen_rect.min.x as f32 / screen_width - 0.5,
-        //                                 1.0 - screen_rect.min.y as f32 / screen_height - 0.5,
-        //                             )) * 2.0,
-        //                         max: origin
-        //                             + (vector(
-        //                                 screen_rect.max.x as f32 / screen_width - 0.5,
-        //                                 1.0 - screen_rect.max.y as f32 / screen_height - 0.5,
-        //                             )) * 2.0,
-        //                     };
-        //                     arrayvec::ArrayVec::<[Vertex; 6]>::from([
-        //                         Vertex {
-        //                             position: [gl_rect.min.x, gl_rect.max.y],
-        //                             tex_coords: [uv_rect.min.x, uv_rect.max.y],
-        //                             colour,
-        //                         },
-        //                         Vertex {
-        //                             position: [gl_rect.min.x, gl_rect.min.y],
-        //                             tex_coords: [uv_rect.min.x, uv_rect.min.y],
-        //                             colour,
-        //                         },
-        //                         Vertex {
-        //                             position: [gl_rect.max.x, gl_rect.min.y],
-        //                             tex_coords: [uv_rect.max.x, uv_rect.min.y],
-        //                             colour,
-        //                         },
-        //                         Vertex {
-        //                             position: [gl_rect.max.x, gl_rect.min.y],
-        //                             tex_coords: [uv_rect.max.x, uv_rect.min.y],
-        //                             colour,
-        //                         },
-        //                         Vertex {
-        //                             position: [gl_rect.max.x, gl_rect.max.y],
-        //                             tex_coords: [uv_rect.max.x, uv_rect.max.y],
-        //                             colour,
-        //                         },
-        //                         Vertex {
-        //                             position: [gl_rect.min.x, gl_rect.max.y],
-        //                             tex_coords: [uv_rect.min.x, uv_rect.max.y],
-        //                             colour,
-        //                         },
-        //                     ])
-        //                 } else {
-        //                     arrayvec::ArrayVec::new()
-        //                 }
-        //             })
-        //             .collect();
-        // 
-        //         glium::VertexBuffer::new(&display, &vertices).unwrap()
-        //     };
-        //     (char_vertex_buffer, char_uniforms)
-        // };
         
         drawer.update_dimensions(&display);
         
@@ -329,72 +224,6 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
             .unwrap();
         
         drawer.render_lines(&lines, &display, &mut target);
-        
-        let (char_vertex_buffer, char_uniforms) = {
-            let sampler = drawer.atlas.atlas
-                .sampled()
-                .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest);
-            let char_uniforms = uniform! {
-                tex: sampler
-            };
-            let char_vertex_buffer = {
-                #[derive(Copy, Clone)]
-                struct Vertex {
-                    position: [f32; 2],
-                    tex_coords: [f32; 2],
-                    colour: [f32; 4],
-                }
-                implement_vertex!(Vertex, position, tex_coords, colour);
-                let colour = [0.0, 0.0, 0.0, 1.0];
-                let (screen_width, screen_height) = {
-                    let (w, h) = display.get_framebuffer_dimensions();
-                    (w as f32, h as f32)
-                };
-                glium::VertexBuffer::new(
-                    &display,
-                    &[
-                        Vertex {
-                            position: [-1.0, -1.0],
-                            tex_coords: [0.0, -1.0],
-                            colour
-                        },
-                        Vertex {
-                            position: [-1.0, 1.0],
-                            tex_coords: [0.0, 0.0],
-                            colour
-                        },
-                        Vertex {
-                            position: [1.0, 1.0],
-                            tex_coords: [1.0, 0.0],
-                            colour
-                        },
-                        Vertex {
-                            position: [1.0, -1.0],
-                            tex_coords: [1.0, -1.0],
-                            colour
-                        },
-                    ],
-                )
-                .unwrap()
-            };
-            (char_vertex_buffer, char_uniforms)
-        };
-        
-        
-        
-        // target
-        //     .draw(
-        //         &char_vertex_buffer,
-        //         &index_buffer,
-        //         &char_program,
-        //         &char_uniforms,
-        //         &glium::DrawParameters {
-        //             blend: glium::Blend::alpha_blending(),
-        //             ..Default::default()
-        //         },
-        //     )
-        //     .unwrap();
-        
         
         target.finish().unwrap();
 
