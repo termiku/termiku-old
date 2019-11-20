@@ -305,7 +305,7 @@ impl <'a> Drawer<'a> {
     }
     
     // TODO really bad rn, should handle if the atlas isn't big enough
-    fn prepare_atlas(&mut self, lines: &[&DisplayCellLine]) {
+    fn prepare_atlas(&mut self, lines: &[&DisplayCellLine]) {        
         for line in lines {
             for cell in &line.cells {
                 self.atlas.insert(cell.ftg.size(), cell.ftg.id(), cell.ftg.data()).unwrap();
@@ -313,16 +313,24 @@ impl <'a> Drawer<'a> {
         }
     }
     
-    fn get_vertices_for_cell(&self, cell: &DisplayCell, x: u32, y: u32) -> [Vertex; 6] {        
+    fn get_vertices_for_cell(&self, cell: &DisplayCell, x: u32, y: u32) -> [Vertex; 6] {
+        let actual_x = x as i32;
+        let actual_y = y as i32;
+        
         let tex_rect = self.atlas.get(cell.ftg.id()).unwrap();
         let cell_height = self.cell_size.height;        
         
         let delta_cell_y = cell_height - tex_rect.size.height;
-        let y = y + delta_cell_y;
-        let x = x + 1;
+        let actual_y = actual_y + delta_cell_y as i32;
+        let actual_x = actual_x + 1;
         
         let delta_glyph_y = (cell.ftg.height - cell.ftg.bearing_y) / 64;
-        let y = y + delta_glyph_y as u32;
+        
+        println!("y: {:?}, delta_glyph_y: {:?}", y, delta_glyph_y);
+        let actual_y = actual_y + delta_glyph_y as i32;
+        
+        let delta_glyph_x = cell.ftg.bearing_x / 64;
+        let actual_x = (x as i64 + delta_glyph_x) as i32;
         
         let RectSize {
             height: screen_height,
@@ -333,11 +341,11 @@ impl <'a> Drawer<'a> {
             width: atlas_width
         } = self.atlas.size;
         
-        let pos_top_left_x = ((x as f32 / screen_width as f32) - 0.5 ) * 2.0;
-        let pos_top_left_y = ((y as f32 / screen_height as f32) - 0.5 ) * -2.0;
+        let pos_top_left_x = ((actual_x as f32 / screen_width as f32) - 0.5 ) * 2.0;
+        let pos_top_left_y = ((actual_y as f32 / screen_height as f32) - 0.5 ) * -2.0;
         
-        let pos_bottom_right_x = (((x + tex_rect.size.width) as f32 / screen_width as f32) - 0.5 ) * 2.0;
-        let pos_bottom_right_y = (((y + tex_rect.size.height) as f32 / screen_height as f32) - 0.5 ) * -2.0;
+        let pos_bottom_right_x = (((actual_x + tex_rect.size.width as i32) as f32 / screen_width as f32) - 0.5 ) * 2.0;
+        let pos_bottom_right_y = (((actual_y + tex_rect.size.height as i32) as f32 / screen_height as f32) - 0.5 ) * -2.0;
         
         let tex_top_left_x = tex_rect.top_left().x as f32 / atlas_width as f32;
         let tex_top_left_y = tex_rect.top_left().y as f32 / atlas_height as f32 * -1.0;
