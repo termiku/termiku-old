@@ -1,10 +1,14 @@
 // A good lot of this code is taken from glium/examples/image.rs
 // For now, we only want a window capable of receiving keyboard inputs as a basis for future work
 use crate::bridge::spawn_process;
+use crate::atlas::{Atlas, RectSize};
+use crate::draw::*;
+
+use std::sync::Arc;
 
 use mio_extras::channel::Sender;
 
-use glium::{glutin, Surface};
+use glium::{glutin, Surface, Frame};
 
 use std::io::Cursor;
 
@@ -34,32 +38,31 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
         .with_inner_size(glutin::dpi::LogicalSize::new(1280.0, 720.0))
         .with_title("mou ikkai");
     let context_builder = glutin::ContextBuilder::new();
-    let display = glium::Display::new(window_builder, context_builder, &events_loop).unwrap();
+    
+    let display = glium::Display::new(window_builder, context_builder, &events_loop).unwrap();    
     
     let font_path = "/usr/share/fonts/OTF/FiraCode-Regular.otf";
+    
+    let drawer = Drawer::new(&display, font_path);    
 
     let font_p = create_harfbuzz_font(font_path).unwrap();
-    let buffer = create_harfbuzz_buffer("= nya éè ▀ = >= == >== =>");
+    let mut buffer = create_harfbuzz_buffer("abcdefghijklmnopqrstuvwxyz");
     let buffer_p = buffer.as_ptr();
     
-    unsafe {
+    let glyph_buffer = unsafe {
         harfbuzz_shape(font_p, buffer_p);
         print_harfbuzz_buffer_info(font_p, buffer_p);
-    }
+        get_buffer_glyph(buffer_p)
+    };
     
+    let GLYPH_ID = 1169;
     let freetype_lib = init_freetype().unwrap();
     let freetype_face = new_face(freetype_lib, font_path).unwrap();
     set_char_size(freetype_face).unwrap();
-    let glyph = render_glyph(freetype_face, 1593).unwrap();
-    println!("{:?}", glyph);
-    println!();
-    glyph.print();
-    
-    // Now go look at this to rasterize
-    // https://github.com/tangrams/harfbuzz-example/blob/master/src/freetypelib.cpp#L45
-    
-    //std::process::exit(0);
-    
+    let glyph = render_glyph(freetype_face, GLYPH_ID).unwrap();
+    // println!("{:?}", glyph);
+    // println!();
+    // glyph.print();
     
     let process_sender = spawn_process(program, args, env);
     
@@ -71,9 +74,6 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
     .to_rgba();
     let dpi_factor = display.gl_window().window().hidpi_factor();
     let (cache_width, cache_height) = (512 * dpi_factor as u32, 512 * dpi_factor as u32);
-    let mut cache = Cache::builder()
-        .dimensions(cache_width, cache_height)
-        .build();
 
     let char_program = program!(
     &display,
@@ -178,19 +178,25 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
                    "
     })
     .unwrap();
-
-    let char_cache_tex = glium::texture::Texture2d::with_format(
-        &display,
-        glium::texture::RawImage2d {
-            data: Cow::Owned(vec![128u8; cache_width as usize * cache_height as usize]),
-            width: cache_width,
-            height: cache_height,
-            format: glium::texture::ClientFormat::U8,
-        },
-        glium::texture::UncompressedFloatFormat::U8,
-        glium::texture::MipmapsOption::NoMipmap,
-    )
-    .unwrap();
+    
+    let mut atlas = Atlas::new(&display, RectSize {
+        width: 800,
+        height: 800
+    });
+    
+    for glyph_id in glyph_buffer.into_iter() {
+        let glyph = render_glyph(freetype_face, glyph_id).unwrap();
+        // println!("{:?}", glyph);
+        // println!("{:?}", atlas.insert(glyph.size(), glyph_id, glyph.data()).unwrap());
+    }
+    
+    let mut drawer = Drawer::new(&display, font_path);
+    
+    let lines = vec![
+        CharacterLine::from_string("abcdefghijklmnopqrstuvwxyz12345678901234567890234567890".to_owned()),
+        CharacterLine::from_string("def".to_owned()),
+        CharacterLine::from_string("ghi".to_owned())
+    ];
 
     start_loop(events_loop, move |events| {
         // let a_glyph = font.glyph('R');
@@ -296,6 +302,9 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
         //     };
         //     (char_vertex_buffer, char_uniforms)
         // };
+        
+        drawer.update_dimensions(&display);
+        
         let uniforms = uniform! {
             matrix: [
                 [1.0, 0.0, 0.0, 0.0],
@@ -318,10 +327,65 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
                 &Default::default(),
             )
             .unwrap();
+        
+        drawer.render_lines(&lines, &display, &mut target);
+        
+        let (char_vertex_buffer, char_uniforms) = {
+            let sampler = drawer.atlas.atlas
+                .sampled()
+                .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest);
+            let char_uniforms = uniform! {
+                tex: sampler
+            };
+            let char_vertex_buffer = {
+                #[derive(Copy, Clone)]
+                struct Vertex {
+                    position: [f32; 2],
+                    tex_coords: [f32; 2],
+                    colour: [f32; 4],
+                }
+                implement_vertex!(Vertex, position, tex_coords, colour);
+                let colour = [0.0, 0.0, 0.0, 1.0];
+                let (screen_width, screen_height) = {
+                    let (w, h) = display.get_framebuffer_dimensions();
+                    (w as f32, h as f32)
+                };
+                glium::VertexBuffer::new(
+                    &display,
+                    &[
+                        Vertex {
+                            position: [-1.0, -1.0],
+                            tex_coords: [0.0, -1.0],
+                            colour
+                        },
+                        Vertex {
+                            position: [-1.0, 1.0],
+                            tex_coords: [0.0, 0.0],
+                            colour
+                        },
+                        Vertex {
+                            position: [1.0, 1.0],
+                            tex_coords: [1.0, 0.0],
+                            colour
+                        },
+                        Vertex {
+                            position: [1.0, -1.0],
+                            tex_coords: [1.0, -1.0],
+                            colour
+                        },
+                    ],
+                )
+                .unwrap()
+            };
+            (char_vertex_buffer, char_uniforms)
+        };
+        
+        
+        
         // target
         //     .draw(
         //         &char_vertex_buffer,
-        //         glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+        //         &index_buffer,
         //         &char_program,
         //         &char_uniforms,
         //         &glium::DrawParameters {
@@ -330,7 +394,8 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
         //         },
         //     )
         //     .unwrap();
-
+        
+        
         target.finish().unwrap();
 
         let mut action = Action::Continue;
@@ -395,50 +460,4 @@ where
 
 fn send_char_to_process(process: &Sender<char>, character: char) {
     process.send(character).unwrap();
-}
-
-struct Point<T> {
-    pub x: T,
-    pub y: T,
-}
-
-struct Rect<T> {
-    pub top_left: Point<T>,
-    pub bottom_right: Point<T>,
-}
-
-struct Glyph {
-    pub data: Vec<u8>,
-    pub id: u64,
-    pub pos: Rect<f32>,
-    pub tex: Rect<i32>,
-}
-
-struct GlyphCache {
-    pub atlas: glium::texture::texture2d::Texture2d,
-    pub height: u32,
-    pub width: u32,
-    cache_map: HashMap<u64, Rect<i32>>,
-}
-
-impl GlyphCache {
-    fn new(display: &glium::Display, height: u32, width: u32) -> Self {
-        Self {
-            atlas: glium::texture::Texture2d::with_format(
-                display,
-                glium::texture::RawImage2d {
-                    data: Cow::Owned(vec![128u8; width as usize * height as usize]),
-                    width,
-                    height,
-                    format: glium::texture::ClientFormat::U8,
-                },
-                glium::texture::UncompressedFloatFormat::U8,
-                glium::texture::MipmapsOption::NoMipmap,
-            )
-            .unwrap(),
-            height,
-            width,
-            cache_map: HashMap::new(),
-        }
-    }
 }

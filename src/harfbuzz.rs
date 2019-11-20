@@ -52,8 +52,16 @@ pub unsafe fn print_harfbuzz_buffer_info(font: *mut hb_font_t, buffer: *mut hb_b
         let name_buffer_p = name_buffer.as_mut_ptr();
         
         hb_font_get_glyph_name(font, gid, name_buffer_p, 32);
-        println!("gid: {}, name: {}", gid, String::from_utf8(name_buffer.iter().map(|&c| c as u8).collect()).unwrap())
+        // println!("gid: {}, name: {}", gid, String::from_utf8(name_buffer.iter().map(|&c| c as u8).collect()).unwrap())
     }
+}
+
+pub unsafe fn get_buffer_glyph(buffer: *mut hb_buffer_t) -> Vec<u32> {
+    let buffer_length: u32 = hb_buffer_get_length(buffer);
+    let glyph_infos_p = hb_buffer_get_glyph_infos(buffer, std::ptr::null_mut());
+    let glyph_infos = std::slice::from_raw_parts(glyph_infos_p, buffer_length as usize);
+    
+    glyph_infos.iter().map(|i| i.codepoint).collect()
 }
 
 fn blob_from_file(path: &str) -> Blob {
