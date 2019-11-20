@@ -37,8 +37,8 @@ impl Rect {
         }        
     }
     
-    // max
-    pub fn bottom_right(&self) -> Point {
+    
+    pub fn bottom_left(&self) -> Point {
         let Point { x, y } = self.pos;
         Point {
             x,
@@ -46,7 +46,8 @@ impl Rect {
         }  
     }
     
-    pub fn bottom_left(&self) -> Point {
+    // max
+    pub fn bottom_right(&self) -> Point {
         let Point { x, y } = self.pos;
         Point {
             x: x + self.size.width,
@@ -69,7 +70,7 @@ struct SpriteSlot {
 
 pub struct Atlas {
     pub atlas: glium::texture::texture2d::Texture2d,
-    size:   RectSize,
+    pub size:   RectSize,
     slots:  Vec<SpriteSlot>,
 }
 

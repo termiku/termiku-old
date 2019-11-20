@@ -88,21 +88,26 @@ pub fn render_glyph(face: FT_Face, glyph_index: u32) -> FTResult<FreeTypeGlyph> 
     }
     
     let glyph = unsafe {
-        let bitmap = (*(*face).glyph).bitmap;
-            let buffer = std::slice::from_raw_parts(
-                bitmap.buffer,
-                (bitmap.pitch.abs() as u32 * bitmap.rows) as usize
-            ).to_owned();
-            
-            FreeTypeGlyph {
-                id: glyph_index,
-                buffer,
-                rows: bitmap.rows,
-                pitch: bitmap.pitch.abs() as u32,
-                advance_x: (*(*face).glyph).advance.x,
-                advance_y: (*(*face).glyph).advance.y,
-            }
-        };
+        let glyph = *(*face).glyph;
+        let bitmap = glyph.bitmap;
+        let metrics = glyph.metrics;
+        let buffer = std::slice::from_raw_parts(
+            bitmap.buffer,
+            (bitmap.pitch.abs() as u32 * bitmap.rows) as usize
+        ).to_owned();
+
+        FreeTypeGlyph {
+            id: glyph_index,
+            buffer,
+            rows: bitmap.rows,
+            pitch: bitmap.pitch.abs() as u32,
+            width: metrics.width,
+            height: metrics.height,
+            bearing_y: metrics.horiBearingY,
+            advance_x: (*(*face).glyph).advance.x,
+            advance_y: (*(*face).glyph).advance.y,
+        }
+    };
     
     Ok(glyph)
 }
@@ -124,6 +129,9 @@ pub struct FreeTypeGlyph {
     buffer: Vec<u8>,
     rows: u32,
     pitch: u32,
+    pub width: i64,
+    pub height: i64,
+    pub bearing_y: i64,
     advance_x: i64,
     advance_y: i64
 }

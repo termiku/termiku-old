@@ -2,7 +2,9 @@
 // For now, we only want a window capable of receiving keyboard inputs as a basis for future work
 use crate::bridge::spawn_process;
 use crate::atlas::{Atlas, RectSize};
-use crate::draw::Drawer;
+use crate::draw::*;
+
+use std::sync::Arc;
 
 use mio_extras::channel::Sender;
 
@@ -36,7 +38,8 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
         .with_inner_size(glutin::dpi::LogicalSize::new(1280.0, 720.0))
         .with_title("mou ikkai");
     let context_builder = glutin::ContextBuilder::new();
-    let display = glium::Display::new(window_builder, context_builder, &events_loop).unwrap();
+    
+    let display = glium::Display::new(window_builder, context_builder, &events_loop).unwrap();    
     
     let font_path = "/usr/share/fonts/OTF/FiraCode-Regular.otf";
     
@@ -57,9 +60,9 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
     let freetype_face = new_face(freetype_lib, font_path).unwrap();
     set_char_size(freetype_face).unwrap();
     let glyph = render_glyph(freetype_face, GLYPH_ID).unwrap();
-    println!("{:?}", glyph);
-    println!();
-    glyph.print();
+    // println!("{:?}", glyph);
+    // println!();
+    // glyph.print();
     
     let process_sender = spawn_process(program, args, env);
     
@@ -183,9 +186,17 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
     
     for glyph_id in glyph_buffer.into_iter() {
         let glyph = render_glyph(freetype_face, glyph_id).unwrap();
-        println!("{:?}", glyph);
-        println!("{:?}", atlas.insert(glyph.size(), glyph_id, glyph.data()).unwrap());
+        // println!("{:?}", glyph);
+        // println!("{:?}", atlas.insert(glyph.size(), glyph_id, glyph.data()).unwrap());
     }
+    
+    let mut drawer = Drawer::new(&display, font_path);
+    
+    let lines = vec![
+        CharacterLine::from_string("abcdefghijklmnopqrstuvwxyz12345678901234567890234567890".to_owned()),
+        CharacterLine::from_string("def".to_owned()),
+        CharacterLine::from_string("ghi".to_owned())
+    ];
 
     start_loop(events_loop, move |events| {
         // let a_glyph = font.glyph('R');
@@ -291,8 +302,36 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
         //     };
         //     (char_vertex_buffer, char_uniforms)
         // };
+        
+        drawer.update_dimensions(&display);
+        
+        let uniforms = uniform! {
+            matrix: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0f32]
+            ],
+            tex: &opengl_texture
+        };
+
+        // drawing a frame
+        let mut target = display.draw();
+        target.clear_color(0.0, 0.0, 0.0, 0.0);
+        target
+            .draw(
+                &vertex_buffer,
+                &index_buffer,
+                &program,
+                &uniforms,
+                &Default::default(),
+            )
+            .unwrap();
+        
+        drawer.render_lines(&lines, &display, &mut target);
+        
         let (char_vertex_buffer, char_uniforms) = {
-            let sampler = atlas.atlas
+            let sampler = drawer.atlas.atlas
                 .sampled()
                 .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest);
             let char_uniforms = uniform! {
@@ -341,42 +380,22 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
             (char_vertex_buffer, char_uniforms)
         };
         
-        let uniforms = uniform! {
-            matrix: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0f32]
-            ],
-            tex: &opengl_texture
-        };
-
-        // drawing a frame
-        let mut target = display.draw();
-        target.clear_color(0.0, 0.0, 0.0, 0.0);
-        target
-            .draw(
-                &vertex_buffer,
-                &index_buffer,
-                &program,
-                &uniforms,
-                &Default::default(),
-            )
-            .unwrap();
         
-        target
-            .draw(
-                &char_vertex_buffer,
-                &index_buffer,
-                &char_program,
-                &char_uniforms,
-                &glium::DrawParameters {
-                    blend: glium::Blend::alpha_blending(),
-                    ..Default::default()
-                },
-            )
-            .unwrap();
-
+        
+        // target
+        //     .draw(
+        //         &char_vertex_buffer,
+        //         &index_buffer,
+        //         &char_program,
+        //         &char_uniforms,
+        //         &glium::DrawParameters {
+        //             blend: glium::Blend::alpha_blending(),
+        //             ..Default::default()
+        //         },
+        //     )
+        //     .unwrap();
+        
+        
         target.finish().unwrap();
 
         let mut action = Action::Continue;

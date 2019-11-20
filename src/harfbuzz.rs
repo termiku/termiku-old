@@ -52,7 +52,7 @@ pub unsafe fn print_harfbuzz_buffer_info(font: *mut hb_font_t, buffer: *mut hb_b
         let name_buffer_p = name_buffer.as_mut_ptr();
         
         hb_font_get_glyph_name(font, gid, name_buffer_p, 32);
-        println!("gid: {}, name: {}", gid, String::from_utf8(name_buffer.iter().map(|&c| c as u8).collect()).unwrap())
+        // println!("gid: {}, name: {}", gid, String::from_utf8(name_buffer.iter().map(|&c| c as u8).collect()).unwrap())
     }
 }
 
