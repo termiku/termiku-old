@@ -1,6 +1,7 @@
 use crate::atlas::*;
 use crate::harfbuzz::*;
 use crate::freetype::*;
+use crate::pty_buffer::*;
 
 use glium::{Display, Frame, VertexBuffer, IndexBuffer, DrawParameters, Surface, index::NoIndices};
 use glium::program::Program;
@@ -19,34 +20,7 @@ struct Vertex {
 }
 implement_vertex!(Vertex, position, tex_coords, colour);
 
-// Group of character to be rendered, with probably in the future options to apply to them
-#[derive(Debug)]
-pub struct CharacterGroup {
-    // maybe try to use &str?
-    characters: String
-}
 
-// Logical line, as in "here's a line to be rendered", as expected for the user
-#[derive(Debug)]
-pub struct CharacterLine {
-    line: Vec<CharacterGroup>
-}
-
-impl CharacterLine {
-    pub fn from_string(content: String) -> CharacterLine {
-        let character_group = CharacterGroup {
-            characters: content
-        };
-        
-        Self {
-            line: vec![character_group]
-        }
-    }
-    
-    pub fn single_line(content: String) -> Vec<CharacterLine> {
-        vec![CharacterLine::from_string(content)]
-    }
-}
 
 // Struct containing a character, should be populated with colors, transformations, and such later on
 // Maybe going to need the font info too when multifont ?
@@ -55,6 +29,9 @@ struct DisplayCell {
     ftg: FreeTypeGlyph
 }
 
+// Contains a cell line, aka a line of cell to be rendered.
+// A character line can be segmented into multiple cell lines if this character line is too long
+// to fit in a single cell line
 #[derive(Debug)]
 struct DisplayCellLine {
     cells: Vec<DisplayCell>
@@ -234,7 +211,7 @@ impl <'a> Drawer<'a> {
     }
     
     /// Get the maximum number of cell per row
-    fn get_line_cell_width(&self) -> u32 {
+    pub fn get_line_cell_width(&self) -> u32 {
         let screen_width = self.dimensions.width as f32;
         let cell_width = self.cell_size.width as f32;
         
@@ -248,7 +225,7 @@ impl <'a> Drawer<'a> {
     }
     
     /// Get the maximum number of cell per column
-    fn get_line_cell_height(&self) -> u32 {
+    pub fn get_line_cell_height(&self) -> u32 {
         let screen_height = self.dimensions.height as f32;
         let cell_height = self.cell_size.height as f32;
         
@@ -320,17 +297,17 @@ impl <'a> Drawer<'a> {
         let tex_rect = self.atlas.get(cell.ftg.id()).unwrap();
         let cell_height = self.cell_size.height;        
         
-        let delta_cell_y = cell_height - tex_rect.size.height;
-        let actual_y = actual_y + delta_cell_y as i32;
+        let delta_cell_y = cell_height as i32 - tex_rect.size.height as i32;
+        let actual_y = actual_y + delta_cell_y;
         let actual_x = actual_x + 1;
         
         let delta_glyph_y = (cell.ftg.height - cell.ftg.bearing_y) / 64;
         
-        println!("y: {:?}, delta_glyph_y: {:?}", y, delta_glyph_y);
+        // println!("y: {:?}, delta_glyph_y: {:?}", y, delta_glyph_y);
         let actual_y = actual_y + delta_glyph_y as i32;
         
         let delta_glyph_x = cell.ftg.bearing_x / 64;
-        let actual_x = (x as i64 + delta_glyph_x) as i32;
+        let actual_x = (actual_x as i64 + delta_glyph_x) as i32;
         
         let RectSize {
             height: screen_height,
@@ -422,9 +399,7 @@ impl <'a> Drawer<'a> {
     }
     
     pub fn render_lines(&mut self, lines: &[CharacterLine], display: &Display, frame: &mut Frame) {
-        
         let cell_lines = self.character_lines_to_cell_lines(lines);
-        let cell_line_height = self.get_line_cell_height();
         let cell_height = self.cell_size.height;
         
         let number_of_lines = (self.dimensions.height / self.cell_size.height) as usize;
