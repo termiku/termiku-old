@@ -2,8 +2,9 @@
 //! tabbing support)
 
 use crate::pty::PtyWithProcess;
-use crate::pty::{self, Pty};
+use crate::pty;
 use crate::pty_buffer::PtyBuffer;
+use crate::pty_buffer::CharacterLine;
 
 use mio::unix::EventedFd;
 use mio::{Events, Poll, PollOpt, Ready, Token};
@@ -199,8 +200,7 @@ impl TermManager {
                             handle.write_buffer_to_active_pty(&buffer[0..amount]);
                         }
                     // This is output from a pty.
-                    // We will write it to a PtyBuffer
-                    // For now we write it to Termiku's STDOUT
+                    // We write it to a PtyBuffer, and to Termiku's STDOUT
                     } else {
                         let uid = event.token().0;
                         
@@ -209,10 +209,15 @@ impl TermManager {
                             
                             let term = handle.get_uid_mut(uid).unwrap();
                             
+                            let mut input: Vec<u8> = Vec::with_capacity(32);
+                            
                             while let Ok(amount) = term.pty.pty.read(&mut buffer) {
                                 print!("{}", String::from_utf8_lossy(&buffer[0..amount]));
                                 io::stdout().flush().unwrap();
+                                input.extend(&buffer[0..amount]);
                             }
+                            
+                            term.buffer.add_input(&String::from_utf8_lossy(&input))
                         }
                     }
                 }
@@ -247,6 +252,11 @@ impl TermManager {
     
     pub fn send_input(&mut self, input: char) {
         self.sender.send(input).unwrap();
+    }
+    
+    pub fn get_lines_from_active(&mut self, start: usize, end: usize) -> Vec<CharacterLine> {
+        let list = self.list.read().unwrap();
+        list.get_active().unwrap().buffer.get_range(start, end)
     }
 }
 

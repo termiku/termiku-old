@@ -297,8 +297,8 @@ impl <'a> Drawer<'a> {
         let tex_rect = self.atlas.get(cell.ftg.id()).unwrap();
         let cell_height = self.cell_size.height;        
         
-        let delta_cell_y = cell_height - tex_rect.size.height;
-        let actual_y = actual_y + delta_cell_y as i32;
+        let delta_cell_y = cell_height as i32 - tex_rect.size.height as i32;
+        let actual_y = actual_y + delta_cell_y;
         let actual_x = actual_x + 1;
         
         let delta_glyph_y = (cell.ftg.height - cell.ftg.bearing_y) / 64;
@@ -307,7 +307,7 @@ impl <'a> Drawer<'a> {
         let actual_y = actual_y + delta_glyph_y as i32;
         
         let delta_glyph_x = cell.ftg.bearing_x / 64;
-        let actual_x = (x as i64 + delta_glyph_x) as i32;
+        let actual_x = (actual_x as i64 + delta_glyph_x) as i32;
         
         let RectSize {
             height: screen_height,
@@ -399,9 +399,7 @@ impl <'a> Drawer<'a> {
     }
     
     pub fn render_lines(&mut self, lines: &[CharacterLine], display: &Display, frame: &mut Frame) {
-        
         let cell_lines = self.character_lines_to_cell_lines(lines);
-        let cell_line_height = self.get_line_cell_height();
         let cell_height = self.cell_size.height;
         
         let number_of_lines = (self.dimensions.height / self.cell_size.height) as usize;

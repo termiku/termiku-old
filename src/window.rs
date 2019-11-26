@@ -209,7 +209,7 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
             )
             .unwrap();
         
-        drawer.render_lines(&lines, &display, &mut target);
+        drawer.render_lines(&manager.get_lines_from_active(0, 20), &display, &mut target);
         
         target.finish().unwrap();
 
