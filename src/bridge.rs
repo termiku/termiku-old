@@ -33,7 +33,7 @@ const STDIN_FD: RawFd = 0;
 /// 6. Registers EventedFd, Pty, and channel for reading (edge-triggered)
 /// 7. Creates a new thread with the event loop running inside
 /// 8. Returns the Sender part of the channel created in *5.*
-pub fn spawn_process(program: &str, args: &[&str], env: &Option<HashMap<String, String>>) -> Sender<char> {
+fn spawn_process(program: &str, args: &[&str], env: &Option<HashMap<String, String>>) -> Sender<char> {
     // 1.
     unsafe {
         use libc::{F_GETFL, F_SETFL, O_NONBLOCK};
@@ -73,6 +73,7 @@ pub fn spawn_process(program: &str, args: &[&str], env: &Option<HashMap<String, 
         PollOpt::edge(),
     )
     .unwrap();
+    
     poll.register(
         &comm,
         Token(PROCESS_TOKEN),

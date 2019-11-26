@@ -1,38 +1,26 @@
 // A good lot of this code is taken from glium/examples/image.rs
 // For now, we only want a window capable of receiving keyboard inputs as a basis for future work
-use crate::bridge::spawn_process;
 use crate::atlas::{Atlas, RectSize};
 use crate::draw::*;
-
-use std::sync::Arc;
+use crate::pty_buffer::*;
+use crate::freetype::*;
+use crate::harfbuzz::*;
+use crate::term::*;
 
 use mio_extras::channel::Sender;
 
-use glium::{glutin, Surface, Frame};
-
-use std::io::Cursor;
-
-use glium::glutin::event::{Event, KeyboardInput, StartCause, WindowEvent};
+use glium::{glutin, Surface};
+use glium::glutin::event::{Event, StartCause, WindowEvent};
 use glium::glutin::event_loop::{ControlFlow, EventLoop};
-use std::time::{Duration, Instant};
-
-use std::borrow::Cow;
-
-use crate::harfbuzz::*;
-
-use ::freetype::freetype::*;
-use crate::freetype::*;
-use harfbuzz::sys::*;
-use harfbuzz::*;
-use std::collections::HashMap;
-
-use arrayvec::*;
 use glium::index::PrimitiveType;
 
-use rusttype::gpu_cache::Cache;
-use rusttype::{point, vector, Font, Scale};
+use std::io::Cursor;
+use std::time::{Duration, Instant};
+use std::collections::HashMap;
 
 pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>>) {
+    let mut manager = TermManager::new();
+    
     let events_loop = EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new()
         .with_inner_size(glutin::dpi::LogicalSize::new(1280.0, 720.0))
@@ -63,8 +51,6 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
     // println!("{:?}", glyph);
     // println!();
     // glyph.print();
-    
-    let process_sender = spawn_process(program, args, env);
     
     let image = image::load(
         Cursor::new(&include_bytes!("../images/miku.jpg")[..]),
@@ -191,9 +177,9 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
     let mut drawer = Drawer::new(&display, font_path);
     
     let lines = vec![
-        // CharacterLine::from_string("abcdefghijklmnopqrstuvwxyz12345678901234567890234567890".to_owned()),
+         CharacterLine::from_string("abcdefghijklmnopqrstuvwxyz12345678901234567890234567890".to_owned()),
         CharacterLine::from_string("abc=>a<>a!=a==a===a<=>a>=".to_owned()),
-        // CharacterLine::from_string("ghi".to_owned())
+        CharacterLine::from_string("ghi".to_owned())
     ];
 
     start_loop(events_loop, move |events| {
@@ -233,7 +219,7 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::CloseRequested => action = Action::Stop,
                     WindowEvent::ReceivedCharacter(input) => {
-                        send_char_to_process(&process_sender, *input);
+                        manager.send_input(*input)
                     }
                     _ => (),
                 },

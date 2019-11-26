@@ -11,3 +11,5 @@ pub mod harfbuzz;
 pub mod config;
 pub mod atlas;
 pub mod draw;
+pub mod pty_buffer;
+pub mod term;
