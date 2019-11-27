@@ -2,6 +2,7 @@
 // For now, we only want a window capable of receiving keyboard inputs as a basis for future work
 use crate::draw::*;
 use crate::term::*;
+use crate::config::*;
 
 use mio_extras::channel::Sender;
 
@@ -12,10 +13,9 @@ use glium::index::PrimitiveType;
 
 use std::io::Cursor;
 use std::time::{Duration, Instant};
-use std::collections::HashMap;
 
-pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>>) {
-    let mut manager = TermManager::new();
+pub fn window(config: Config) {
+    let mut manager = TermManager::new(config.clone());
     
     let events_loop = EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new()
@@ -23,9 +23,7 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
         .with_title("mou ikkai");
     let context_builder = glutin::ContextBuilder::new();
     
-    let display = glium::Display::new(window_builder, context_builder, &events_loop).unwrap();    
-    
-    let font_path = "/usr/share/fonts/OTF/FiraCode-Regular.otf";
+    let display = glium::Display::new(window_builder, context_builder, &events_loop).unwrap();
     
     let image = image::load(
         Cursor::new(&include_bytes!("../images/miku.jpg")[..]),
@@ -103,7 +101,7 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
     })
     .unwrap();
     
-    let mut drawer = Drawer::new(&display, font_path);
+    let mut drawer = Drawer::new(&display, config);
 
     start_loop(events_loop, move |events| {
         

@@ -40,12 +40,12 @@ pub fn new_face(lib: FT_Library, path: &str) -> FTResult<FT_Face> {
     }
 }
 
-pub fn set_char_size(face: FT_Face) -> FTResult<()> {
+pub fn set_char_size(face: FT_Face, size: i64) -> FTResult<()> {
     let error = unsafe {
         FT_Set_Char_Size(
             face,
-            3000,
-            3000,
+            size * 64,
+            size * 64,
             0,
             0
         )

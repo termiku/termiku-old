@@ -2,4 +2,12 @@
 [env]
 TERM = "dumb"
 # Test cookie
-TERMIKU = "Hello!"
+TERMIKU = "nya!"
+
+[shell]
+program = "sh"
+args = []
+
+[font]
+size = 20
+path = "/usr/share/fonts/OTF/FiraCode-Regular.otf"
