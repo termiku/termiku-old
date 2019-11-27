@@ -3,10 +3,9 @@ use crate::harfbuzz::*;
 use crate::freetype::*;
 use crate::pty_buffer::*;
 
-use glium::{Display, Frame, VertexBuffer, IndexBuffer, DrawParameters, Surface, index::NoIndices};
+use glium::{Display, Frame, VertexBuffer, DrawParameters, Surface, index::NoIndices};
 use glium::program::Program;
 use glium::uniforms::Uniforms;
-use glium::index::PrimitiveType;
 
 use ::freetype::freetype::*;
 use ::harfbuzz::sys::*;

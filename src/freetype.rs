@@ -1,9 +1,7 @@
 use ::freetype::freetype::*;
 use std::ffi::CString;
-use harfbuzz::sys::*;
-use harfbuzz::*;
 
-use crate::atlas::{Rect, RectSize};
+use crate::atlas::RectSize;
 
 type FTResult<T> = Result<T, FT_Error>;
 
@@ -140,8 +138,8 @@ pub struct FreeTypeGlyph {
 
 impl FreeTypeGlyph {
     pub fn print(&self) {
-        let mut iter = self.buffer.chunks(self.pitch as usize);
-        while let Some(row) = iter.next() {
+        let iter = self.buffer.chunks(self.pitch as usize);
+        for row in iter {
             for pixel in row {
                 if *pixel < 200 {
                     print!(" ");

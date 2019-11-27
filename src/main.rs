@@ -5,13 +5,9 @@ use clap::{App, AppSettings, Arg};
 use termiku::config::Config as TermikuConfig;
 use termiku::window::window;
 
-use termiku::pty_buffer::*;
-
 use toml;
 
 fn main() {
-    test();
-    
     let args = App::new("Termiku")
                    .version("0.1.0")
                    .author("ShinySaana & LunarLambda")
@@ -37,36 +33,4 @@ fn main() {
     }
 
     window("sh", &[], &config.env);
-}
-
-fn test() {
-    // let mut data = [1, 2, 3].iter().peekable();
-    // 
-    // loop {
-    //     let is_last = data.peek()
-    // 
-    //     match data.next() {
-    //         Some(data) => {
-    //             println!("")
-    // 
-    //         },
-    //         None => break
-    //     }
-    // }
-    // 
-    // let mut buffer = PtyBuffer::new();
-    // buffer.add_input("1111111111111111\n");
-    // buffer.add_input("2222222222222222");
-    // buffer.add_input("2222222222222222\n");
-    // buffer.add_input("3333333333333");
-    // buffer.add_input("3333333333333");
-    // buffer.add_input("3333333333333\n");
-    // buffer.add_input("4444444444");
-    // buffer.add_input("4444444\n555555");
-    // buffer.add_input("55555555555");
-    // buffer.add_input("\n6666666666666");
-    // buffer.add_input("666666666\n");
-    // buffer.add_input("7777777");
-    // 
-    // println!("{:#2?}", buffer.get_range(0, 7));
 }

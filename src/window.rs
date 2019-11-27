@@ -1,10 +1,6 @@
 // A good lot of this code is taken from glium/examples/image.rs
 // For now, we only want a window capable of receiving keyboard inputs as a basis for future work
-use crate::atlas::{Atlas, RectSize};
 use crate::draw::*;
-use crate::pty_buffer::*;
-use crate::freetype::*;
-use crate::harfbuzz::*;
 use crate::term::*;
 
 use mio_extras::channel::Sender;
@@ -31,71 +27,13 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
     
     let font_path = "/usr/share/fonts/OTF/FiraCode-Regular.otf";
     
-    let drawer = Drawer::new(&display, font_path);    
-
-    let font_p = create_harfbuzz_font(font_path).unwrap();
-    let mut buffer = create_harfbuzz_buffer("abcdefghijklmnopqrstuvwxyz");
-    let buffer_p = buffer.as_ptr();
-    
-    let glyph_buffer = unsafe {
-        harfbuzz_shape(font_p, buffer_p);
-        print_harfbuzz_buffer_info(font_p, buffer_p);
-        get_buffer_glyph(buffer_p)
-    };
-    
-    let GLYPH_ID = 1169;
-    let freetype_lib = init_freetype().unwrap();
-    let freetype_face = new_face(freetype_lib, font_path).unwrap();
-    set_char_size(freetype_face).unwrap();
-    let glyph = render_glyph(freetype_face, GLYPH_ID).unwrap();
-    // println!("{:?}", glyph);
-    // println!();
-    // glyph.print();
-    
     let image = image::load(
         Cursor::new(&include_bytes!("../images/miku.jpg")[..]),
         image::JPEG,
     )
     .unwrap()
     .to_rgba();
-    let dpi_factor = display.gl_window().window().hidpi_factor();
-    let (cache_width, cache_height) = (512 * dpi_factor as u32, 512 * dpi_factor as u32);
 
-    let char_program = program!(
-    &display,
-    140 => {
-            vertex: "
-                #version 140
-
-                in vec2 position;
-                in vec2 tex_coords;
-                in vec4 colour;
-
-                out vec2 v_tex_coords;
-                out vec4 v_colour;
-
-                void main() {
-                    gl_Position = vec4(position, 0.0, 1.0);
-                    v_tex_coords = tex_coords;
-                    v_colour = colour;
-                }
-            ",
-
-            fragment: "
-                #version 140
-                uniform sampler2D tex;
-                in vec2 v_tex_coords;
-                in vec4 v_colour;
-                out vec4 f_colour;
-
-                void main() {
-                    f_colour = v_colour * vec4(1.0, 1.0, 1.0, texture(tex, v_tex_coords).r);
-                }
-            "
-    })
-    .unwrap();
-
-    //
     let dimensions = image.dimensions();
     let glium_image =
         glium::texture::RawImage2d::from_raw_rgba_reversed(&image.into_raw(), dimensions);
@@ -165,22 +103,7 @@ pub fn window(program: &str, args: &[&str], env: &Option<HashMap<String, String>
     })
     .unwrap();
     
-    let mut atlas = Atlas::new(&display, RectSize {
-        width: 800,
-        height: 800
-    });
-    
-    for glyph_id in glyph_buffer.into_iter() {
-        let glyph = render_glyph(freetype_face, glyph_id).unwrap();
-    }
-    
     let mut drawer = Drawer::new(&display, font_path);
-    
-    let lines = vec![
-         CharacterLine::from_string("abcdefghijklmnopqrstuvwxyz12345678901234567890234567890".to_owned()),
-        CharacterLine::from_string("abc=>a<>a!=a==a===a<=>a>=".to_owned()),
-        CharacterLine::from_string("ghi".to_owned())
-    ];
 
     start_loop(events_loop, move |events| {
         

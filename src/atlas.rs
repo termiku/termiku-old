@@ -97,10 +97,9 @@ impl Atlas {
     /// Returns a mutable reference to the SpriteSlot if one is found, and None otherwise.
     fn find_empty_slot(&mut self, size: RectSize) -> Option<&mut SpriteSlot> {
         self.slots.iter_mut()
-                  .filter(|s| s.space == Space::Empty
+                  .find(|s| s.space == Space::Empty
                            && s.rect.size.width  >= size.width
                            && s.rect.size.height >= size.height)
-                  .next()
     }
 
     /// Tries to find an open space for a new slot of the specified size.
@@ -154,27 +153,6 @@ impl Atlas {
                 );
     }
 
-
-    /*
-    /// Writes a vector of pixels to the Atlas according to the specified Rectangle.
-    /// Assumes that `pixels` is large enough to fill the `rect`.
-    fn write_pixels(&mut self, rect: &Rect, pixels: Vec<Pixel>) {
-        // Convert (X, Y) coordinate to array index using x + y * w
-        let start = rect.pos.x + rect.pos.y * self.size.width;
-
-        for row in (0..rect.size.height) {
-            // Offset start with the current row
-            let start_r = start + row * self.size.width;
-            let end_r   = start_r + rect.size.width;
-            // Range to get one row of pixels.
-            let start_p = row * rect.size.width;
-            let end_p   = start_p + rect.size_width;
-            self.pixels[start_r..end_r]
-                .copy_from_slice(&pixels[start_p..end_p])
-        }
-    }
-    */
-
     /// Tries inserting a Sprite with the specified GlyphId into the Atlas.
     /// Returns an Option containing the coordinates and size of the sprite in the atlas,
     /// or None if insertion failed.
@@ -194,6 +172,7 @@ impl Atlas {
             
             rect_to_update = Some(slot.rect);
             to_be_returned = Some(slot.rect.pos);
+            
         // Otherwise, we have to look for free space.
         } else if let Some(pos) = self.find_open_slot_space(size) {
             let rect = Rect {
