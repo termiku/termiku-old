@@ -11,7 +11,6 @@ use mio::unix::EventedFd;
 use mio::{Events, Poll, PollOpt, Ready, Token};
 use mio_extras::channel::{channel, Sender};
 
-use std::collections::HashMap;
 use std::io;
 use std::io::{Read, Write};
 use std::os::unix::io::RawFd;
@@ -25,8 +24,6 @@ const STDIN_TOKEN:    usize = 1;
 // Raw file descriptor for stdin (POSIX)
 // See 5th paragraph in man 3 stdin (http://man7.org/linux/man-pages/man3/stdin.3.html)
 const STDIN_FD: RawFd = 0;
-// const STDOUT_FD: RawFd = 1;
-// const STDERR_FD: RawFd = 2;
 
 // 0 and 1 are reserved
 const FIRST_TERMINAL_UID: usize = 2;
@@ -179,12 +176,12 @@ impl TermManager {
         
         
         term_manager.add_new_term();
+        
+        let mut buffer = [0; 256];
+        let mut char_buffer = [0; 4];
 
         {
-            std::thread::spawn(move || loop {
-                let mut buffer = [0; 256];
-                let mut char_buffer = [0; 4];
-                
+            std::thread::spawn(move || loop {                                
                 cloned_poll.poll(&mut events, None).unwrap();
                 for event in &events {
                     // This is a window event. We redirect to the active term
@@ -226,8 +223,8 @@ impl TermManager {
                     }
                 }
             });
-        }        
-        
+        }
+
         term_manager
     }
     
@@ -258,9 +255,22 @@ impl TermManager {
         self.sender.send(input).unwrap();
     }
     
-    pub fn get_lines_from_active(&mut self, start: usize, end: usize) -> Vec<CharacterLine> {
-        let list = self.list.read().unwrap();
-        list.get_active().unwrap().buffer.get_range(start, end)
+    pub fn get_lines_from_active(&mut self, start: usize, end: usize) -> Option<Vec<CharacterLine>> {
+        let updated = {
+            let list = self.list.read().unwrap();
+            list.get_active().unwrap().buffer.is_updated()
+        };
+        
+        if updated {
+            Some(self.get_lines_from_active_force(start, end))
+        } else {
+            None
+        }
+    }
+    
+    pub fn get_lines_from_active_force(&mut self, start: usize, end: usize) -> Vec<CharacterLine> {
+        let mut list = self.list.write().unwrap();
+        list.get_active_mut().unwrap().buffer.get_range(start, end)
     }
 }
 

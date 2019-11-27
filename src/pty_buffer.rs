@@ -56,7 +56,8 @@ impl CharacterLine {
 #[derive(Debug)]
 pub struct PtyBuffer {
     current_line: CharacterLine,
-    past_lines: VecDeque<CharacterLine>
+    past_lines: VecDeque<CharacterLine>,
+    updated: bool
 }
 
 impl PtyBuffer {
@@ -66,11 +67,14 @@ impl PtyBuffer {
         
         Self {
             current_line,
-            past_lines
+            past_lines,
+            updated: false
         }
     }
     
     pub fn add_input(&mut self, input: &str) {
+        self.updated = true;
+        
         let mut lines = input.split('\n').peekable();
         
         loop {
@@ -89,11 +93,17 @@ impl PtyBuffer {
         
     }
     
+    pub fn is_updated(&self) -> bool {
+        self.updated
+    }
+    
     // Get a range of lines (from the last one pushed, aka the newest, to the first one pushed, aka the oldest)
     // Won't panic if there's more
     // Will panic if end < start
-    pub fn get_range(&self, start: usize, end: usize) -> Vec<CharacterLine> {
+    pub fn get_range(&mut self, start: usize, end: usize) -> Vec<CharacterLine> {
         assert!(start <= end);
+        self.updated = false;
+        
         let number_of_line_requested = end - start + 1;
         let mut to_return: Vec<CharacterLine>;
         
