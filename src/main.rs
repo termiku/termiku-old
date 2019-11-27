@@ -26,11 +26,5 @@ fn main() {
 
     let config = toml::from_str::<TermikuConfig>(&config).unwrap();
 
-    if let Some(ref envs) = config.env {
-        for (key, val) in envs.iter() {
-            println!("{} = {}", key, val);
-        }
-    }
-
-    window("sh", &[], &config.env);
+    window(config);
 }

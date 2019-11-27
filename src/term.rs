@@ -5,6 +5,7 @@ use crate::pty::PtyWithProcess;
 use crate::pty;
 use crate::pty_buffer::PtyBuffer;
 use crate::pty_buffer::CharacterLine;
+use crate::config::*;
 
 use mio::unix::EventedFd;
 use mio::{Events, Poll, PollOpt, Ready, Token};
@@ -27,6 +28,7 @@ const STDIN_FD: RawFd = 0;
 // const STDOUT_FD: RawFd = 1;
 // const STDERR_FD: RawFd = 2;
 
+// 0 and 1 are reserved
 const FIRST_TERMINAL_UID: usize = 2;
 
 pub struct Term {
@@ -120,7 +122,8 @@ impl TermList {
 }
 
 /// Manage a Termlist
-pub struct TermManager {
+pub struct TermManager{
+    config: Config,
     factory: TermFactory,
     poll: Arc<Poll>,
     sender: Sender<char>,
@@ -128,7 +131,7 @@ pub struct TermManager {
 }
 
 impl TermManager {
-    pub fn new() -> Self {
+    pub fn new(config: Config) -> Self {
         Self::setup();
         
         // Creates an mio::EventedFd for stdin
@@ -164,9 +167,10 @@ impl TermManager {
         let cloned_poll = poll.clone();
         let cloned_termlist = termlist.clone();
         
-        let factory = TermFactory::new();
+        let factory = TermFactory::new(config.clone());
         
         let mut term_manager = Self {
+            config,
             factory,
             poll,
             sender,
@@ -260,29 +264,29 @@ impl TermManager {
     }
 }
 
-impl std::default::Default for TermManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Creates sequentially numbered `Term`s for us so we don't need to rely on a global counter.
 /// FIXME(Luna): Move PTY creation into TermFactory
 pub struct TermFactory {
+    config: Config,
     count: usize
 }
 
 impl TermFactory {
-    pub fn new() -> Self {
-        // 0 and 1 are reserved (ShinySaana)
+    pub fn new(config: Config) -> Self {
         TermFactory {
+            config,
             count: FIRST_TERMINAL_UID
         }
     }
 
     /// Wraps a ProcessWithPty in a Term struct with a new uid.
     pub fn make_term(&mut self) -> Term {
-        let pty = pty::spawn_process("sh", &[], &Some(HashMap::new())).unwrap();
+        let pty = pty::spawn_process(
+            &self.config.shell.program,
+            self.config.shell.args.as_slice(),
+            &self.config.env
+        ).unwrap();
+        
         let buffer = PtyBuffer::default();
         
         if self.count == usize::max_value() {
@@ -297,12 +301,6 @@ impl TermFactory {
 
         self.count += 1;
         term
-    }
-}
-
-impl std::default::Default for TermFactory {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

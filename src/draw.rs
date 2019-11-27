@@ -2,6 +2,7 @@ use crate::atlas::*;
 use crate::harfbuzz::*;
 use crate::freetype::*;
 use crate::pty_buffer::*;
+use crate::config::*;
 
 use glium::{Display, Frame, VertexBuffer, DrawParameters, Surface, index::NoIndices};
 use glium::program::Program;
@@ -37,6 +38,7 @@ struct DisplayCellLine {
 }
 
 pub struct Drawer<'a> {
+    config: Config,
     dimensions: RectSize,
     harfbuzz: HarfbuzzWrapper,
     freetype: FreetypeWrapper,
@@ -106,13 +108,13 @@ impl ProgramWrapper {
 
 impl <'a> Drawer<'a> {
     // TODO: probably should take a DrawConfig, or use a builder pattern
-    pub fn new(display: &Display, font_path: &str) -> Self {
+    pub fn new(display: &Display, config: Config) -> Self {
         let dimensions = RectSize {
             width: display.get_framebuffer_dimensions().0,
             height: display.get_framebuffer_dimensions().1,
         };
         
-        let hb_font = create_harfbuzz_font(font_path).unwrap();
+        let hb_font = create_harfbuzz_font(&config.font.path).unwrap();
         let buffer = create_harfbuzz_buffer("a");
         
         let hb_wrapper = HarfbuzzWrapper {
@@ -121,8 +123,8 @@ impl <'a> Drawer<'a> {
         };
         
         let freetype_lib = init_freetype().unwrap();
-        let face = new_face(freetype_lib, font_path).unwrap();
-        set_char_size(face).unwrap();
+        let face = new_face(freetype_lib, &config.font.path).unwrap();
+        set_char_size(face, config.font.size as i64).unwrap();
         
         let ft_wrapper = FreetypeWrapper {
             lib: freetype_lib,
@@ -150,6 +152,7 @@ impl <'a> Drawer<'a> {
         };
         
         let mut drawer = Self {
+            config,
             dimensions,
             harfbuzz: hb_wrapper,
             freetype: ft_wrapper,

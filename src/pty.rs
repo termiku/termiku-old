@@ -198,7 +198,7 @@ pub struct PtyWithProcess {
     pub process: Child,
 }
 
-pub fn spawn_process(program: &str, args: &[&str], env: &Option<HashMap<String, String>>) -> io::Result<PtyWithProcess> {
+pub fn spawn_process (program: &str, args: &[String], env: &Option<HashMap<String, String>>) -> io::Result<PtyWithProcess> {
     let pty = Pty::open()?;
     let fds = pty.as_raw_fds();
 
