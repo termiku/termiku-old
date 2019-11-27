@@ -168,11 +168,22 @@ impl <'a> Drawer<'a> {
         drawer
     }
     
-    pub fn update_dimensions(&mut self, display: &Display) {
-        self.dimensions = RectSize {
-            width: display.get_framebuffer_dimensions().0,
-            height: display.get_framebuffer_dimensions().1,
-        };
+    // update the dimensions of the drawer.
+    // returns true if those dimensions have changed
+    
+    pub fn update_dimensions(&mut self, display: &Display) -> bool {
+        let (width, height) = display.get_framebuffer_dimensions();
+        
+        let changed = self.dimensions.width != width || self.dimensions.height != height;
+        
+        if changed {
+            self.dimensions = RectSize {
+                width,
+                height,
+            };
+        }
+        
+        changed
     }
     
     fn rasterize(&mut self, characters: &str) -> Vec<FreeTypeGlyph> {

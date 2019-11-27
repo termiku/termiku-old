@@ -3,6 +3,7 @@
 use crate::draw::*;
 use crate::term::*;
 use crate::config::*;
+use crate::pty_buffer::CharacterLine;
 
 use mio_extras::channel::Sender;
 
@@ -102,25 +103,43 @@ pub fn window(config: Config) {
     .unwrap();
     
     let mut drawer = Drawer::new(&display, config);
-
+    let mut lines = manager.get_lines_from_active_force(0, 20);
+    let mut first_draw = true;
+    
     start_loop(events_loop, move |events| {
+        let mut need_refresh = false;
         
-        drawer.update_dimensions(&display);
+        if first_draw {
+            first_draw = false;
+            need_refresh = true;
+        }
         
-        let uniforms = uniform! {
-            matrix: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0f32]
-            ],
-            tex: &opengl_texture
-        };
-
-        // drawing a frame
-        let mut target = display.draw();
-        target.clear_color(0.0, 0.0, 0.0, 0.0);
-        target
+        if drawer.update_dimensions(&display) {
+            need_refresh = true;
+        }
+        
+        let maybe_new = manager.get_lines_from_active(0, 20);
+        if let Some(new_lines) = maybe_new {
+            lines = new_lines;
+            need_refresh = true;
+        }
+        
+        if need_refresh {
+            let uniforms = uniform! {
+                matrix: [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0f32]
+                ],
+                tex: &opengl_texture
+            };
+            
+            // drawing a frame
+            let mut target = display.draw();
+            
+            target.clear_color(0.0, 0.0, 0.0, 0.0);
+            target
             .draw(
                 &vertex_buffer,
                 &index_buffer,
@@ -129,10 +148,12 @@ pub fn window(config: Config) {
                 &Default::default(),
             )
             .unwrap();
+            
+            drawer.render_lines(&lines, &display, &mut target);
+            
+            target.finish().unwrap();
+        }
         
-        drawer.render_lines(&manager.get_lines_from_active(0, 20), &display, &mut target);
-        
-        target.finish().unwrap();
 
         let mut action = Action::Continue;
         for event in events {
