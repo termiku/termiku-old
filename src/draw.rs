@@ -1,6 +1,5 @@
 use crate::atlas::*;
-use crate::harfbuzz::*;
-use crate::freetype::*;
+use crate::rasterizer::*;
 use crate::pty_buffer::*;
 use crate::config::*;
 
@@ -8,9 +7,7 @@ use glium::{Display, Frame, VertexBuffer, DrawParameters, Surface, index::NoIndi
 use glium::program::Program;
 use glium::uniforms::Uniforms;
 
-use ::freetype::freetype::*;
-use ::harfbuzz::sys::*;
-use ::harfbuzz::Buffer;
+use std::sync::{Arc, RwLock};
 
 #[derive(Copy, Clone, Debug)]
 struct Vertex {
@@ -18,46 +15,17 @@ struct Vertex {
     tex_coords: [f32; 2],
     colour: [f32; 4],
 }
+
 implement_vertex!(Vertex, position, tex_coords, colour);
 
-
-
-// Struct containing a character, should be populated with colors, transformations, and such later on
-// Maybe going to need the font info too when multifont ?
-#[derive(Debug)]
-struct DisplayCell {
-    ftg: FreeTypeGlyph
-}
-
-// Contains a cell line, aka a line of cell to be rendered.
-// A character line can be segmented into multiple cell lines if this character line is too long
-// to fit in a single cell line
-#[derive(Debug)]
-struct DisplayCellLine {
-    cells: Vec<DisplayCell>
-}
 
 pub struct Drawer<'a> {
     config: Config,
     dimensions: RectSize,
-    harfbuzz: HarfbuzzWrapper,
-    freetype: FreetypeWrapper,
     program: ProgramWrapper,
     index_buffer: NoIndices,
     draw_parameters: DrawParameters<'a>,
     pub atlas: Atlas,
-    pub cell_size: RectSize
-}
-
-struct HarfbuzzWrapper {
-    font: *mut hb_font_t,
-    // Not sure how Pin works, so i'll recreate a pointer each time it's needed for now
-    buffer: Buffer
-}
-
-struct FreetypeWrapper {
-    lib: FT_Library,
-    face: FT_Face
 }
 
 struct ProgramWrapper {
@@ -106,29 +74,14 @@ impl ProgramWrapper {
     }
 }
 
+pub type WrappedDrawer<'a> = Arc<RwLock<Drawer<'a>>>;
+
 impl <'a> Drawer<'a> {
     // TODO: probably should take a DrawConfig, or use a builder pattern
     pub fn new(display: &Display, config: Config) -> Self {
         let dimensions = RectSize {
             width: display.get_framebuffer_dimensions().0,
             height: display.get_framebuffer_dimensions().1,
-        };
-        
-        let hb_font = create_harfbuzz_font(&config.font.path).unwrap();
-        let buffer = create_harfbuzz_buffer("a");
-        
-        let hb_wrapper = HarfbuzzWrapper {
-            font: hb_font,
-            buffer
-        };
-        
-        let freetype_lib = init_freetype().unwrap();
-        let face = new_face(freetype_lib, &config.font.path).unwrap();
-        set_char_size(face, config.font.size as i64).unwrap();
-        
-        let ft_wrapper = FreetypeWrapper {
-            lib: freetype_lib,
-            face
         };
         
         // let dpi_factor = display.gl_window().window().hidpi_factor();
@@ -151,21 +104,14 @@ impl <'a> Drawer<'a> {
             height: 0
         };
         
-        let mut drawer = Self {
+        Self {
             config,
             dimensions,
-            harfbuzz: hb_wrapper,
-            freetype: ft_wrapper,
             program,
             index_buffer,
             draw_parameters,
             atlas,
-            cell_size
-        };
-        
-        drawer.guess_cell_size();
-        
-        drawer
+        }
     }
     
     // update the dimensions of the drawer.
@@ -186,113 +132,6 @@ impl <'a> Drawer<'a> {
         changed
     }
     
-    fn rasterize(&mut self, characters: &str) -> Vec<FreeTypeGlyph> {
-        let mut buffer = create_harfbuzz_buffer(characters);
-        let buffer_p = buffer.as_ptr();
-        let glyphs = unsafe {
-            harfbuzz_shape(self.harfbuzz.font, buffer_p);
-            get_buffer_glyph(buffer_p)
-        };
-        render_glyphs(self.freetype.face, &glyphs).unwrap()
-    }
-    
-    fn guess_cell_size(&mut self) {
-        let rasterized = self.rasterize("abcdefghijklmnopqrstuvwxyz1234567890");
-        
-        let mut current_width: i64 = 0;
-        let mut current_height: i64 = 0;
-        
-        for ftg in rasterized.iter() {
-            if ftg.height > current_height {
-                current_height = ftg.height;
-            }
-            if ftg.width > current_width {
-                current_width = ftg.width;
-            }
-        }
-        
-        current_width = current_width / 64;
-        current_height = current_height / 64;
-        
-        if current_width == 0 || current_height == 0 {
-            println!("width: {}, height: {}", current_width, current_height);
-            panic!("Cells are too tiny!");
-        }
-        
-        self.cell_size.height = current_height as u32 + 1;
-        self.cell_size.width = current_width as u32 + 1;
-    }
-    
-    /// Get the maximum number of cell per row
-    pub fn get_line_cell_width(&self) -> u32 {
-        let screen_width = self.dimensions.width as f32;
-        let cell_width = self.cell_size.width as f32;
-        
-        let mut cell_number = (screen_width / cell_width).floor() as u32;
-        
-        if cell_number == 0 {
-            cell_number += 1;
-        }
-        
-        cell_number
-    }
-    
-    /// Get the maximum number of cell per column
-    pub fn get_line_cell_height(&self) -> u32 {
-        let screen_height = self.dimensions.height as f32;
-        let cell_height = self.cell_size.height as f32;
-        
-        let mut cell_number = (screen_height / cell_height).floor() as u32;
-        
-        if cell_number == 0 {
-            cell_number += 1;
-        }
-        
-        cell_number
-    }
-    
-    
-    // probably should redo all of this, differentiating the previous lines and the current lines
-    fn character_line_to_cell_lines(&mut self, line: &CharacterLine, line_cell_width: u32) -> Vec<DisplayCellLine> {
-        let mut cell_lines = Vec::<DisplayCellLine>::new();
-        
-        for group in line.line.iter() {
-            let mut rasterized: Vec<FreeTypeGlyph> = self.rasterize(&group.characters);
-            loop {
-                if rasterized.is_empty() {
-                    break
-                }
-                
-                let number_to_remove = if rasterized.len() < line_cell_width as usize {
-                    rasterized.len()
-                } else {
-                    line_cell_width as usize
-                };
-                
-                let drain = rasterized.drain(0..number_to_remove);
-                let cells: Vec<DisplayCell> = drain.map(|ftg| DisplayCell {ftg}).collect();
-                
-                cell_lines.push(DisplayCellLine {
-                    cells
-                });
-            }
-        }
-        
-        // println!("{:?}", cell_lines);
-        
-        cell_lines.reverse();
-        
-        cell_lines
-    }
-    
-    fn character_lines_to_cell_lines(&mut self, lines: &[CharacterLine]) -> Vec<DisplayCellLine> {
-        let line_cell_width = self.get_line_cell_width();
-        lines
-            .iter()
-            .rev()
-            .flat_map(|line| self.character_line_to_cell_lines(line, line_cell_width))
-            .collect()
-    }
     
     // TODO really bad rn, should handle if the atlas isn't big enough
     fn prepare_atlas(&mut self, lines: &[&DisplayCellLine]) {        
@@ -303,12 +142,12 @@ impl <'a> Drawer<'a> {
         }
     }
     
-    fn get_vertices_for_cell(&self, cell: &DisplayCell, x: u32, y: u32) -> [Vertex; 6] {
+    fn get_vertices_for_cell(&self, cell: &DisplayCell, cell_size: RectSize, x: u32, y: u32) -> [Vertex; 6] {
         let actual_x = x as i32;
         let actual_y = y as i32;
         
         let tex_rect = self.atlas.get(cell.ftg.id()).unwrap();
-        let cell_height = self.cell_size.height;        
+        let cell_height = cell_size.height;        
         
         let delta_cell_y = cell_height as i32 - tex_rect.size.height as i32;
         let actual_y = actual_y + delta_cell_y;
@@ -316,7 +155,6 @@ impl <'a> Drawer<'a> {
         
         let delta_glyph_y = (cell.ftg.height - cell.ftg.bearing_y) / 64;
         
-        // println!("y: {:?}, delta_glyph_y: {:?}", y, delta_glyph_y);
         let actual_y = actual_y + delta_glyph_y as i32;
         
         let delta_glyph_x = cell.ftg.bearing_x / 64;
@@ -379,18 +217,15 @@ impl <'a> Drawer<'a> {
         ]
     }
     
-    fn get_vertices_for_line(&self, line: &DisplayCellLine, y: u32) -> Vec<Vertex> {
-        let cell_size = self.cell_size;
+    fn get_vertices_for_line(&self, line: &DisplayCellLine, cell_size: RectSize, y: u32) -> Vec<Vertex> {
         let mut x = 0;
         
         let mut vertices: Vec<Vertex> = Vec::with_capacity(line.cells.len());  
         
         for cell in line.cells.iter() {
-            vertices.extend(&self.get_vertices_for_cell(cell, x, y));
+            vertices.extend(&self.get_vertices_for_cell(cell, cell_size, x, y));
             x += cell_size.width;
         }
-        
-        // println!("{:?}", vertices);
         
         vertices
         
@@ -411,13 +246,15 @@ impl <'a> Drawer<'a> {
             .unwrap();
     }
     
-    pub fn render_lines(&mut self, lines: &[CharacterLine], display: &Display, frame: &mut Frame) {
-        let cell_lines = self.character_lines_to_cell_lines(lines);
-        let cell_height = self.cell_size.height;
+    pub fn render_lines(&mut self, lines: &[CharacterLine],
+        cell_size: RectSize, display: &Display, frame: &mut Frame) {
+        let cell_lines: Vec<&DisplayCellLine> = lines.iter().flat_map(|line| &line.cell_lines).collect();
         
-        let number_of_lines = (self.dimensions.height / self.cell_size.height) as usize;
+        let cell_height = cell_size.height;
         
-        let lines_to_render: Vec<&DisplayCellLine> = cell_lines.iter().take(number_of_lines).rev().collect();
+        let number_of_lines = (self.dimensions.height / cell_size.height) as usize;
+        
+        let lines_to_render: Vec<&DisplayCellLine> = cell_lines.into_iter().take(number_of_lines).rev().collect();
         
         self.prepare_atlas(&lines_to_render);
         
@@ -425,7 +262,7 @@ impl <'a> Drawer<'a> {
         let mut vertices: Vec<Vertex> = vec![];
 
         for line in lines_to_render {
-            vertices.append(&mut self.get_vertices_for_line(line, current_height));
+            vertices.append(&mut self.get_vertices_for_line(line, cell_size, current_height));
             current_height += cell_height;
         }
         
@@ -442,4 +279,3 @@ impl <'a> Drawer<'a> {
         self.draw_vertex(&vertex_buffer, frame, char_uniforms);
     }
 }
-

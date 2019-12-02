@@ -1,3 +1,5 @@
+use crate::rasterizer::*;
+
 use std::collections::VecDeque;
 
 // Group of character to be rendered, with probably in the future options to apply to them
@@ -24,7 +26,9 @@ impl CharacterGroup {
 // Logical line, as in "here's a line with only one life feed at the end", as expected for the user
 #[derive(Debug, Clone)]
 pub struct CharacterLine {
-    pub line: Vec<CharacterGroup>
+    pub associated_string: String,
+    pub line: Vec<CharacterGroup>,
+    pub cell_lines: Vec<DisplayCellLine>
 }
 
 impl CharacterLine {
@@ -32,7 +36,9 @@ impl CharacterLine {
         let character_group = CharacterGroup::with_capacity(16);
 
         Self {
-            line: vec![character_group]
+            associated_string: String::from(""),
+            line: vec![character_group],
+            cell_lines: vec![]
         }
     }
     
@@ -40,7 +46,9 @@ impl CharacterLine {
         let character_group = CharacterGroup::from_string(content);
         
         Self {
-            line: vec![character_group]
+            associated_string: String::from(""),
+            line: vec![character_group],
+            cell_lines: vec![]
         }
     }
     
@@ -48,26 +56,26 @@ impl CharacterLine {
         vec![CharacterLine::from_string(content)]
     }
     
-    pub fn basic_add_to_first(&mut self, content: &str) {
+    pub fn basic_add_to_first(&mut self, content: &str, rasterizer: &mut Rasterizer) {
         self.line.get_mut(0).unwrap().characters.push_str(content);
+        self.cell_lines = rasterizer.character_line_to_cell_lines(self, rasterizer.get_line_cell_width());
     }
 }
 
-#[derive(Debug)]
 pub struct PtyBuffer {
-    current_line: CharacterLine,
-    past_lines: VecDeque<CharacterLine>,
+    rasterizer: WrappedRasterizer,
+    buffer: VecDeque<CharacterLine>,
     updated: bool
 }
 
 impl PtyBuffer {
-    pub fn new() -> PtyBuffer {
-        let current_line = CharacterLine::new();
-        let past_lines: VecDeque<CharacterLine> = VecDeque::new();
+    pub fn new(rasterizer: WrappedRasterizer) -> PtyBuffer {
+        let mut buffer: VecDeque<CharacterLine> = VecDeque::new();
+        buffer.push_back(CharacterLine::new());
         
         Self {
-            current_line,
-            past_lines,
+            rasterizer,
+            buffer,
             updated: false
         }
     }
@@ -104,52 +112,22 @@ impl PtyBuffer {
         assert!(start <= end);
         self.updated = false;
         
-        let number_of_line_requested = end - start + 1;
-        let mut to_return: Vec<CharacterLine>;
+        let mut data: Vec<CharacterLine> = Vec::new();
         
-        if self.past_lines.len() + 1 < number_of_line_requested {
-            let mut data = self.past_lines.clone();
-            data.push_front(self.current_line.clone());
-            to_return = data.into();
-        } else if end == 0 {
-            to_return = vec![self.current_line.clone()];
-        } else {
-            let mut data: Vec<CharacterLine> = Vec::new();
-            if start == 0 {
-                data.push(self.current_line.clone());
-                
-                for i in start..end {
-                    if let Some(content) = self.past_lines.get(i) {
-                        data.push(content.clone());
-                    }
-                }
-            } else {
-                for i in (start - 1)..end {
-                    if let Some(content) = self.past_lines.get(i) {
-                        data.push(content.clone());
-                    }
-                }
+        for i in start..=end {
+            if let Some(content) = self.buffer.get(i) {
+                data.push(content.clone());
             }
-            
-            to_return = data;
         }
         
-        to_return.reverse();
-        to_return
+        data
     }
     
     fn add_to_current_line(&mut self, input: &str) {
-        self.current_line.basic_add_to_first(input)
+        self.buffer.get_mut(0).unwrap().basic_add_to_first(input, &mut self.rasterizer.write().unwrap())
     }
     
     fn complete_current_line(&mut self) {
-        let completed = std::mem::replace(&mut self.current_line, CharacterLine::new());
-        self.past_lines.push_front(completed);        
-    }
-}
-
-impl std::default::Default for PtyBuffer {
-    fn default() -> Self {
-        Self::new()
+        self.buffer.push_front(CharacterLine::new());
     }
 }
