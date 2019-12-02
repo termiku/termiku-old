@@ -273,6 +273,14 @@ impl TermManager {
         let mut list = self.list.write().unwrap();
         list.get_active_mut().unwrap().buffer.get_range(start, end)
     }
+    
+    pub fn dimensions_updated(&mut self) {
+        let mut list = self.list.write().unwrap();
+
+        for term in list.inner.iter_mut() {
+            term.buffer.dimensions_updated();
+        }
+    }
 }
 
 /// Creates sequentially numbered `Term`s for us so we don't need to rely on a global counter.

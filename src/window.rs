@@ -126,6 +126,7 @@ pub fn window(config: Config) {
             dimensions = get_display_size(&display);
             drawer.update_dimensions(&display);
             rasterizer.write().unwrap().update_dimensions(&display);
+            manager.dimensions_updated();
         }
         
         let maybe_new = manager.get_lines_from_active(0, 20);

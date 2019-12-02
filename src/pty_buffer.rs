@@ -58,6 +58,10 @@ impl CharacterLine {
     
     pub fn basic_add_to_first(&mut self, content: &str, rasterizer: &mut Rasterizer) {
         self.line.get_mut(0).unwrap().characters.push_str(content);
+        self.rasterize_to_cells(rasterizer);
+    }
+    
+    pub fn rasterize_to_cells(&mut self, rasterizer: &mut Rasterizer) {
         self.cell_lines = rasterizer.character_line_to_cell_lines(self, rasterizer.get_line_cell_width());
     }
 }
@@ -121,6 +125,16 @@ impl PtyBuffer {
         }
         
         data
+    }
+    
+    pub fn dimensions_updated(&mut self) {
+        // TODO Should *clearly* be more efficient, but we need an interface for a modifyable screen vs past lines
+        
+        for line in self.buffer.iter_mut() {
+            line.rasterize_to_cells(&mut self.rasterizer.write().unwrap());
+        }
+        
+        self.updated = true;
     }
     
     fn add_to_current_line(&mut self, input: &str) {
