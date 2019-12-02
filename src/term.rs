@@ -6,6 +6,8 @@ use crate::pty;
 use crate::pty_buffer::PtyBuffer;
 use crate::pty_buffer::CharacterLine;
 use crate::config::*;
+use crate::rasterizer::*;
+use crate::atlas::RectSize;
 
 use mio::unix::EventedFd;
 use mio::{Events, Poll, PollOpt, Ready, Token};
@@ -119,7 +121,7 @@ impl TermList {
 }
 
 /// Manage a Termlist
-pub struct TermManager{
+pub struct TermManager {
     config: Config,
     factory: TermFactory,
     poll: Arc<Poll>,
@@ -128,7 +130,7 @@ pub struct TermManager{
 }
 
 impl TermManager {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, rasterizer: WrappedRasterizer) -> Self {
         Self::setup();
         
         // Creates an mio::EventedFd for stdin
@@ -163,19 +165,6 @@ impl TermManager {
         
         let cloned_poll = poll.clone();
         let cloned_termlist = termlist.clone();
-        
-        let factory = TermFactory::new(config.clone());
-        
-        let mut term_manager = Self {
-            config,
-            factory,
-            poll,
-            sender,
-            list: termlist
-        };
-        
-        
-        term_manager.add_new_term();
         
         let mut buffer = [0; 256];
         let mut char_buffer = [0; 4];
@@ -224,6 +213,18 @@ impl TermManager {
                 }
             });
         }
+        
+        let factory = TermFactory::new(config.clone(), rasterizer);
+        
+        let mut term_manager = Self {
+            config,
+            factory,
+            poll,
+            sender,
+            list: termlist
+        };
+        
+        term_manager.add_new_term();
 
         term_manager
     }
@@ -277,14 +278,16 @@ impl TermManager {
 /// Creates sequentially numbered `Term`s for us so we don't need to rely on a global counter.
 /// FIXME(Luna): Move PTY creation into TermFactory
 pub struct TermFactory {
+    rasterizer: WrappedRasterizer,
     config: Config,
     count: usize
 }
 
 impl TermFactory {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, rasterizer: WrappedRasterizer) -> Self {
         TermFactory {
             config,
+            rasterizer,
             count: FIRST_TERMINAL_UID
         }
     }
@@ -297,8 +300,8 @@ impl TermFactory {
             &self.config.env
         ).unwrap();
         
-        let buffer = PtyBuffer::default();
-        
+        let buffer = PtyBuffer::new(self.rasterizer.clone());
+
         if self.count == usize::max_value() {
             panic!("Exhausted Term UIds.");
         }

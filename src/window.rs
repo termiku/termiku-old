@@ -3,7 +3,8 @@
 use crate::draw::*;
 use crate::term::*;
 use crate::config::*;
-use crate::pty_buffer::CharacterLine;
+use crate::atlas::RectSize;
+use crate::rasterizer::*;
 
 use mio_extras::channel::Sender;
 
@@ -11,13 +12,13 @@ use glium::{glutin, Surface};
 use glium::glutin::event::{Event, StartCause, WindowEvent};
 use glium::glutin::event_loop::{ControlFlow, EventLoop};
 use glium::index::PrimitiveType;
+use glium::Display;
 
 use std::io::Cursor;
 use std::time::{Duration, Instant};
+use std::sync::{Arc, RwLock};
 
-pub fn window(config: Config) {
-    let mut manager = TermManager::new(config.clone());
-    
+pub fn window(config: Config) {    
     let events_loop = EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new()
         .with_inner_size(glutin::dpi::LogicalSize::new(1280.0, 720.0))
@@ -101,11 +102,17 @@ pub fn window(config: Config) {
                    "
     })
     .unwrap();
-    
-    let mut drawer = Drawer::new(&display, config);
+
+    let mut drawer = Drawer::new(&display, config.clone());
+    let rasterizer = Arc::new(RwLock::new(Rasterizer::new(config.clone(), get_display_size(&display))));
+    let cell_size = rasterizer.read().unwrap().cell_size;
+
+    let mut manager = TermManager::new(config.clone(), rasterizer.clone());
+    let mut dimensions = get_display_size(&display); 
     let mut lines = manager.get_lines_from_active_force(0, 20);
     let mut first_draw = true;
-    
+
+    let rasterizer = rasterizer.clone();
     start_loop(events_loop, move |events| {
         let mut need_refresh = false;
         
@@ -114,8 +121,11 @@ pub fn window(config: Config) {
             need_refresh = true;
         }
         
-        if drawer.update_dimensions(&display) {
+        if check_updated_display_size(&display, &dimensions) {
             need_refresh = true;
+            dimensions = get_display_size(&display);
+            drawer.update_dimensions(&display);
+            rasterizer.write().unwrap().update_dimensions(&display);
         }
         
         let maybe_new = manager.get_lines_from_active(0, 20);
@@ -149,7 +159,7 @@ pub fn window(config: Config) {
             )
             .unwrap();
             
-            drawer.render_lines(&lines, &display, &mut target);
+            drawer.render_lines(&lines, cell_size, &display, &mut target);
             
             target.finish().unwrap();
         }
@@ -217,4 +227,18 @@ where
 
 fn send_char_to_process(process: &Sender<char>, character: char) {
     process.send(character).unwrap();
+}
+
+fn get_display_size(display: &Display) -> RectSize {
+    let (width, height) = display.get_framebuffer_dimensions();
+    
+    RectSize {
+        width,
+        height,
+    }
+}
+
+fn check_updated_display_size(display: &Display, old: &RectSize) -> bool {
+    let (width, height) = display.get_framebuffer_dimensions();
+    old.width != width || old.height != height
 }

@@ -122,7 +122,7 @@ pub fn render_glyphs(face: FT_Face, glyphs: &[u32]) -> FTResult<Vec<FreeTypeGlyp
     Ok(results)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FreeTypeGlyph {
     id: u32,
     buffer: Vec<u8>,

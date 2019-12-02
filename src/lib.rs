@@ -12,3 +12,4 @@ pub mod atlas;
 pub mod draw;
 pub mod pty_buffer;
 pub mod term;
+pub mod rasterizer;
