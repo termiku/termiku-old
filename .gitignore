@@ -1,3 +1,4 @@
 /images
 /target
 **/*.rs.bk
+output.txt

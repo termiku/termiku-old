@@ -28,12 +28,22 @@ pub fn create_harfbuzz_font(path: &str) -> HBResult<*mut hb_font_t> {
     Ok(font_p)
 }
 
-pub fn create_harfbuzz_buffer(data: &str) -> Buffer {
-    let mut buffer = Buffer::with(data);
+pub fn create_harfbuzz_buffer(capacity: usize) -> Buffer {
+    let mut buffer = Buffer::with_capacity(capacity);
     buffer.set_direction(Direction::LTR);
     buffer.set_script(HB_SCRIPT_LATIN);
     buffer.set_language(Language::from_string("en"));
     buffer
+}
+
+pub unsafe fn add_slice_to_buffer(buffer: *mut hb_buffer_t, data: &[u8]) {
+    hb_buffer_add_utf8(
+        buffer,
+        data.as_ptr() as *const std::os::raw::c_char,
+        data.len() as std::os::raw::c_int,
+        0,
+        data.len() as std::os::raw::c_int,
+    );
 }
 
 pub unsafe fn harfbuzz_shape(font: *mut hb_font_t, buffer: *mut hb_buffer_t) {

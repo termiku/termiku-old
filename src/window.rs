@@ -129,7 +129,7 @@ pub fn window(config: Config) {
             manager.dimensions_updated();
         }
         
-        let maybe_new = manager.get_lines_from_active(0, 20);
+        let maybe_new = manager.get_lines_from_active(0, 40);
         if let Some(new_lines) = maybe_new {
             lines = new_lines;
             need_refresh = true;

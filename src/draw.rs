@@ -1,6 +1,5 @@
 use crate::atlas::*;
 use crate::rasterizer::*;
-use crate::pty_buffer::*;
 use crate::config::*;
 
 use glium::{Display, Frame, VertexBuffer, DrawParameters, Surface, index::NoIndices};
@@ -246,15 +245,14 @@ impl <'a> Drawer<'a> {
             .unwrap();
     }
     
-    pub fn render_lines(&mut self, lines: &[CharacterLine],
+    pub fn render_lines(&mut self, lines: &[DisplayCellLine],
         cell_size: RectSize, display: &Display, frame: &mut Frame) {
-        let cell_lines: Vec<&DisplayCellLine> = lines.iter().flat_map(|line| &line.cell_lines).collect();
         
         let cell_height = cell_size.height;
         
         let number_of_lines = (self.dimensions.height / cell_size.height) as usize;
         
-        let lines_to_render: Vec<&DisplayCellLine> = cell_lines.into_iter().take(number_of_lines).rev().collect();
+        let lines_to_render: Vec<&DisplayCellLine> = lines.into_iter().take(number_of_lines).rev().collect();
         
         self.prepare_atlas(&lines_to_render);
         
