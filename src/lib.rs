@@ -13,3 +13,5 @@ pub mod draw;
 pub mod pty_buffer;
 pub mod term;
 pub mod rasterizer;
+pub mod window_event;
+pub mod unicode;

@@ -25,7 +25,6 @@ pub struct DisplayCell {
 // to fit in a single cell line
 #[derive(Debug, Clone)]
 pub struct DisplayCellLine {
-    pub associated_string: String,
     pub cells: Vec<DisplayCell>
 }
 
@@ -55,7 +54,7 @@ pub type WrappedRasterizer = Arc<RwLock<Rasterizer>>;
 impl Rasterizer {
     pub fn new(config: Config, dimensions: RectSize) -> Self {
         let hb_font = NonNull::new(create_harfbuzz_font(&config.font.path).unwrap()).unwrap();
-        let buffer = create_harfbuzz_buffer("");
+        let buffer = create_harfbuzz_buffer(1);
         
         let freetype_lib = init_freetype().unwrap();
         let face = new_face(freetype_lib, &config.font.path).unwrap();
@@ -85,11 +84,12 @@ impl Rasterizer {
         rasterizer
     }  
     
-    pub fn rasterize(&mut self, characters: &str) -> Vec<FreeTypeGlyph> {
+    pub fn rasterize(&mut self, characters: &[u8]) -> Vec<FreeTypeGlyph> {
         let handle = self.wrapper.0.lock().unwrap();
-        let mut buffer = create_harfbuzz_buffer(characters);
+        let mut buffer = create_harfbuzz_buffer(characters.len());
         let buffer_p = buffer.as_ptr();
         let glyphs = unsafe {
+            add_slice_to_buffer(buffer_p, characters);
             harfbuzz_shape(handle.font.as_ptr(), buffer_p);
             get_buffer_glyph(buffer_p)
         };
@@ -115,7 +115,7 @@ impl Rasterizer {
     }
     
     fn guess_cell_size(&mut self) {
-        let rasterized = self.rasterize("abcdefghijklmnopqrstuvwxyz1234567890");
+        let rasterized = self.rasterize("abcdefghijklmnopqrstuvwxyz1234567890".as_bytes());
         
         let mut current_width: i64 = 0;
         let mut current_height: i64 = 0;
@@ -197,7 +197,6 @@ impl Rasterizer {
                 let cells: Vec<DisplayCell> = drain.map(|ftg| DisplayCell {ftg}).collect();
                 
                 cell_lines.push(DisplayCellLine {
-                    associated_string: line.associated_string.clone(),
                     cells
                 });
             }
@@ -215,5 +214,49 @@ impl Rasterizer {
             .rev()
             .flat_map(|line| self.character_line_to_cell_lines(line, line_cell_width))
             .collect()
+    }
+    
+    pub fn cells_to_display_cell_lines(&mut self, cells: &[Cell]) -> Vec<DisplayCellLine> {
+        let line_cell_width = self.get_line_cell_width();
+        let line_cell_height = self.get_line_cell_height();
+        
+        let mut display_cell_lines = Vec::<DisplayCellLine>::new();
+        
+        let mut to_rasterize = String::with_capacity(cells.len());
+        
+        for cell in cells.iter() {
+            match cell {
+                Cell::Filled(content) => to_rasterize.push(*content),
+                Cell::Empty => to_rasterize.push(' '),
+                //                              TEST CHARS
+                Cell::Invalid(_) => to_rasterize.push('?'),
+                Cell::Filling2(_) => to_rasterize.push('!'),
+                Cell::Filling3(_) => to_rasterize.push('+'),
+                Cell::Filling4(_) => to_rasterize.push(':'),
+            }
+        }
+        
+        let mut rasterized = self.rasterize(to_rasterize.as_bytes());
+        
+        loop {
+            if rasterized.is_empty() {
+                break
+            }
+            
+            let number_to_remove = if rasterized.len() < line_cell_width as usize {
+                rasterized.len()
+            } else {
+                line_cell_width as usize
+            };
+            
+            let drain = rasterized.drain(0..number_to_remove);
+            let cells: Vec<DisplayCell> = drain.map(|ftg| DisplayCell {ftg}).collect();
+            
+            display_cell_lines.push(DisplayCellLine {
+                cells
+            });
+        }
+        
+        display_cell_lines
     }
 }

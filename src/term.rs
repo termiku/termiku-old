@@ -4,10 +4,8 @@
 use crate::pty::PtyWithProcess;
 use crate::pty;
 use crate::pty_buffer::PtyBuffer;
-use crate::pty_buffer::CharacterLine;
 use crate::config::*;
 use crate::rasterizer::*;
-use crate::atlas::RectSize;
 
 use mio::unix::EventedFd;
 use mio::{Events, Poll, PollOpt, Ready, Token};
@@ -207,7 +205,7 @@ impl TermManager {
                                 input.extend(&buffer[0..amount]);
                             }
                             
-                            term.buffer.add_input(&String::from_utf8_lossy(&input))
+                            term.buffer.add_input(input)
                         }
                     }
                 }
@@ -256,7 +254,7 @@ impl TermManager {
         self.sender.send(input).unwrap();
     }
     
-    pub fn get_lines_from_active(&mut self, start: usize, end: usize) -> Option<Vec<CharacterLine>> {
+    pub fn get_lines_from_active(&mut self, start: usize, end: usize) -> Option<Vec<DisplayCellLine>> {
         let updated = {
             let list = self.list.read().unwrap();
             list.get_active().unwrap().buffer.is_updated()
@@ -269,7 +267,7 @@ impl TermManager {
         }
     }
     
-    pub fn get_lines_from_active_force(&mut self, start: usize, end: usize) -> Vec<CharacterLine> {
+    pub fn get_lines_from_active_force(&mut self, start: usize, end: usize) -> Vec<DisplayCellLine> {
         let mut list = self.list.write().unwrap();
         list.get_active_mut().unwrap().buffer.get_range(start, end)
     }
