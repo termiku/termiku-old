@@ -113,12 +113,10 @@ impl CharacterLine {
 
 #[derive(Clone, Debug)]
 pub enum Cell {
-    Filling2(Vec<u8>),
-    Filling3(Vec<u8>),
-    Filling4(Vec<u8>),
-    Filled(char),
     Empty,
-    Invalid(Vec<u8>)
+    Filling(Utf8Parser),
+    Filled(char),
+    Invalid
 }
 
 impl Cell {
@@ -131,79 +129,25 @@ impl Cell {
     }
     
     fn get_start(first_byte: u8) -> Self {
-        match number_of_byte_needed(first_byte) {
-            0 => Cell::Invalid(vec![first_byte]),
-            1 => Cell::Filled(first_byte as char),
-            2 => Cell::Filling2(vec![first_byte]),
-            3 => Cell::Filling3(vec![first_byte]),
-            4 => Cell::Filling4(vec![first_byte]),
-            _ => unreachable!()
+        let parser = Utf8Parser::new();
+        Self::get_cell_from_parser_and_byte(parser, first_byte)
+    }
+    
+    #[inline]
+    fn get_cell_from_parser_and_byte(mut parser: Utf8Parser, first_byte: u8) -> Self {
+        match parser.parse_byte(first_byte) {
+            Ok(maybe_char) => match maybe_char {
+                Some(char) => Cell::Filled(char),
+                None => Cell::Filling(parser)
+            },
+            Err(_) => Cell::Invalid
         }
     }
     
-    pub fn next_state(&self, new_byte: u8) -> Cell {
+    pub fn next_state(&mut self, new_byte: u8) -> Cell {
         match self {
-            Self::Filled(_) => Cell::get_start(new_byte),
-            Self::Invalid(_) => Cell::get_start(new_byte),
-            Self::Empty => Cell::get_start(new_byte),
-            Self::Filling2(data) => {
-                assert!(data.len() == 1);
-                if !is_valid_intermediary(new_byte) {
-                    // We check if the byte could be the start of a new char, if it is, we replace
-                    // that current char with the new char in creation
-                    if number_of_byte_needed(new_byte) == 0 {
-                        let mut data = data.clone();
-                        data.push(new_byte);
-                        Cell::Invalid(data)
-                    } else {
-                        Cell::get_start(new_byte)
-                    }
-                } else {
-                    let mut data = data.clone();
-                    data.push(new_byte);
-                    Cell::Filled(convert_to_char(data))
-                }
-            },
-            Self::Filling3(data) => {
-                assert!(data.len() < 3);
-                if !is_valid_intermediary(new_byte) {
-                    if number_of_byte_needed(new_byte) == 0 {
-                        let mut data = data.clone();
-                        data.push(new_byte);
-                        Cell::Invalid(data)
-                    } else {
-                        Cell::get_start(new_byte)
-                    }
-                } else {
-                    let mut data = data.clone();
-                    data.push(new_byte);
-                    if data.len() == 3 {
-                        Cell::Filled(convert_to_char(data.clone()))
-                    } else {
-                        Cell::Filling3(data)
-                    }
-                }
-            },
-            Self::Filling4(data) => {
-                assert!(data.len() < 4);
-                if !is_valid_intermediary(new_byte) {
-                    if number_of_byte_needed(new_byte) == 0 {
-                        let mut data = data.clone();
-                        data.push(new_byte);
-                        Cell::Invalid(data)
-                    } else {
-                        Cell::get_start(new_byte)
-                    }
-                } else {
-                    let mut data = data.clone();
-                    data.push(new_byte);
-                    if data.len() == 4 {
-                        Cell::Filled(convert_to_char(data.clone()))
-                    } else {
-                        Cell::Filling3(data)
-                    }
-                }
-            }
+            Cell::Filled(_) | Cell::Invalid  | Cell::Empty => Cell::get_start(new_byte),
+            Cell::Filling(parser) => Self::get_cell_from_parser_and_byte(*parser, new_byte)
         }
     }
 }
@@ -316,7 +260,7 @@ impl Screen {
             let cell = self.screen_lines[row_number].cells[column_number].next_state(data);
             
             let advance = match cell {
-                Cell::Filled(_) | Cell::Invalid(_) => true,
+                Cell::Filled(_) | Cell::Invalid => true,
                 _ => false
             };
             
