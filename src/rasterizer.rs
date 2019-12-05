@@ -228,11 +228,7 @@ impl Rasterizer {
             match cell {
                 Cell::Filled(content) => to_rasterize.push(*content),
                 Cell::Empty => to_rasterize.push(' '),
-                //                              TEST CHARS
-                Cell::Invalid(_) => to_rasterize.push('?'),
-                Cell::Filling2(_) => to_rasterize.push('!'),
-                Cell::Filling3(_) => to_rasterize.push('+'),
-                Cell::Filling4(_) => to_rasterize.push(':'),
+                Cell::Invalid | Cell::Filling(_) => to_rasterize.push('�')
             }
         }
         
