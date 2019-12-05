@@ -99,8 +99,7 @@ pub mod utf8 {
             if self.length == 0 {
                 if byte < 0x80 {
                     return Ok(Some(char::from(byte)))
-                }
-                else if is_utf8_continuation_byte(byte) {
+                } else if is_utf8_continuation_byte(byte) {
                     return Err(UnexpectedContinuationByte)
                 }
 
