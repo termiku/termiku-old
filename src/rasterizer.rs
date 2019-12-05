@@ -17,7 +17,9 @@ use std::ptr::NonNull;
 // Maybe going to need the font info too when multifont ?
 #[derive(Debug, Clone)]
 pub struct DisplayCell {
-    pub ftg: FreeTypeGlyph
+    pub ftg: FreeTypeGlyph,
+    pub fg_color: Color,
+    pub bg_color: Color
 }
 
 // Contains a cell line, aka a line of cell to be rendered.
@@ -176,46 +178,6 @@ impl Rasterizer {
         }
     }
     
-    // probably should redo all of this, differentiating the previous lines and the current lines
-    pub fn character_line_to_cell_lines(&mut self, line: &CharacterLine, line_cell_width: u32) -> Vec<DisplayCellLine> {
-        let mut cell_lines = Vec::<DisplayCellLine>::new();
-        
-        for group in line.line.iter() {
-            let mut rasterized: Vec<FreeTypeGlyph> = self.rasterize(&group.characters);
-            loop {
-                if rasterized.is_empty() {
-                    break
-                }
-                
-                let number_to_remove = if rasterized.len() < line_cell_width as usize {
-                    rasterized.len()
-                } else {
-                    line_cell_width as usize
-                };
-                
-                let drain = rasterized.drain(0..number_to_remove);
-                let cells: Vec<DisplayCell> = drain.map(|ftg| DisplayCell {ftg}).collect();
-                
-                cell_lines.push(DisplayCellLine {
-                    cells
-                });
-            }
-        }
-        
-        cell_lines.reverse();
-        
-        cell_lines
-    }
-    
-    pub fn character_lines_to_cell_lines(&mut self, lines: &[CharacterLine]) -> Vec<DisplayCellLine> {
-        let line_cell_width = self.get_line_cell_width();
-        lines
-            .iter()
-            .rev()
-            .flat_map(|line| self.character_line_to_cell_lines(line, line_cell_width))
-            .collect()
-    }
-    
     pub fn cells_to_display_cell_lines(&mut self, cells: &[Cell]) -> Vec<DisplayCellLine> {
         let line_cell_width = self.get_line_cell_width();
         let line_cell_height = self.get_line_cell_height();
@@ -225,15 +187,15 @@ impl Rasterizer {
         let mut to_rasterize = String::with_capacity(cells.len());
         
         for cell in cells.iter() {
-            match cell {
-                Cell::Filled(content) => to_rasterize.push(*content),
-                Cell::Empty => to_rasterize.push(' '),
-                Cell::Invalid | Cell::Filling(_) => to_rasterize.push('�')
+            match cell.state {
+                CellState::Filled(content) => to_rasterize.push(content),
+                CellState::Empty => to_rasterize.push(' '),
+                CellState::Invalid | CellState::Filling(_) => to_rasterize.push('�')
             }
         }
         
         let mut rasterized = self.rasterize(to_rasterize.as_bytes());
-        
+        let mut cell_index = 0usize;
         loop {
             if rasterized.is_empty() {
                 break
@@ -246,7 +208,16 @@ impl Rasterizer {
             };
             
             let drain = rasterized.drain(0..number_to_remove);
-            let cells: Vec<DisplayCell> = drain.map(|ftg| DisplayCell {ftg}).collect();
+            let cells: Vec<DisplayCell> = drain.map(|ftg| {    
+                let cell = cells[cell_index];
+                let display = DisplayCell {
+                    ftg,
+                    fg_color: cell.properties.fg,
+                    bg_color: cell.properties.bg,
+                };
+                cell_index += 1;
+                display
+            }).collect();
             
             display_cell_lines.push(DisplayCellLine {
                 cells

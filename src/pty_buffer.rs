@@ -23,20 +23,64 @@ impl Position {
     }
 }
 
+// R G B A
+// Black is 0,0,0
+// White is 1,1,1
+#[derive(Copy, Clone, Debug)]
+pub struct Color(pub u8, pub u8, pub u8, pub u8);
+
+impl Color {
+    pub fn u8_to_f32(byte: u8) -> f32 {
+        if byte == 0 {
+            0.0
+        } else {
+            byte as f32 / 255.0
+        }
+    }
+    
+    pub fn to_opengl_color(&self) -> [f32; 4] {
+        [
+            Self::u8_to_f32(self.0),
+            Self::u8_to_f32(self.1),
+            Self::u8_to_f32(self.2),
+            Self::u8_to_f32(self.3),
+        ]
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct CellProperties {
+    pub fg: Color,
+    pub bg: Color
+}
+
+// Should probably need a Config from somewhere
+impl CellProperties {
+    pub fn new() -> Self {
+        Self {
+            fg: Color(255, 0, 0, 255),
+            bg: Color(1, 1, 1, 255)
+        }
+    }
+}
+
 // Cursor can hold its current position and its saved position, if it exists
+// Also holds the cell properties of the next cells to create (fg and gb colors, bold, italic, etc)
 // It's different than the cursor displayed on screen, and therefore should not hold any
-// information relating to its state (block vs line, blinking or not, etc)
+// information relating to its display state (block vs line, blinking or not, etc)
 #[derive(Copy, Clone, Debug)]
 pub struct Cursor {
     position: Position,
-    saved: Option<Position>
+    saved: Option<Position>,
+    properties: CellProperties,
 }
 
 impl Cursor {
     pub fn new() -> Self {
         Self {
             position: Position::new(),
-            saved: None
+            saved: None,
+            properties: CellProperties::new()
         }
     }
     
@@ -71,63 +115,15 @@ impl CharacterGroup {
     }
 }
 
-// Logical line, as in "here's a line with only one life feed at the end", as expected for the user
-#[derive(Debug, Clone)]
-pub struct CharacterLine {
-    pub line: Vec<CharacterGroup>,
-    pub cell_lines: Vec<DisplayCellLine>
-}
-
-impl CharacterLine {
-    pub fn new() -> CharacterLine {
-        let character_group = CharacterGroup::with_capacity(16);
-
-        Self {
-            line: vec![character_group],
-            cell_lines: vec![]
-        }
-    }
-    
-    pub fn from_string(content: String) -> CharacterLine {
-        let character_group = CharacterGroup::from_string(content);
-        
-        Self {
-            line: vec![character_group],
-            cell_lines: vec![]
-        }
-    }
-    
-    pub fn single_line(content: String) -> Vec<CharacterLine> {
-        vec![CharacterLine::from_string(content)]
-    }
-    
-    pub fn basic_add_to_first(&mut self, content: &[u8], rasterizer: &mut Rasterizer) {
-        self.line.get_mut(0).unwrap().characters.extend(content);
-        self.rasterize_to_cells(rasterizer);
-    }
-    
-    pub fn rasterize_to_cells(&mut self, rasterizer: &mut Rasterizer) {
-        self.cell_lines = rasterizer.character_line_to_cell_lines(self, rasterizer.get_line_cell_width());
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum Cell {
+#[derive(Copy, Clone, Debug)]
+pub enum CellState {
     Empty,
     Filling(Utf8Parser),
     Filled(char),
     Invalid
 }
 
-impl Cell {
-    pub fn filled(data: char) -> Self {
-        Self::Filled(data)
-    }
-    
-    pub fn empty() -> Self {
-        Self::Empty
-    }
-    
+impl CellState {    
     fn get_start(first_byte: u8) -> Self {
         let parser = Utf8Parser::new();
         Self::get_cell_from_parser_and_byte(parser, first_byte)
@@ -137,17 +133,32 @@ impl Cell {
     fn get_cell_from_parser_and_byte(mut parser: Utf8Parser, first_byte: u8) -> Self {
         match parser.parse_byte(first_byte) {
             Ok(maybe_char) => match maybe_char {
-                Some(char) => Cell::Filled(char),
-                None => Cell::Filling(parser)
+                Some(char) => CellState::Filled(char),
+                None => CellState::Filling(parser)
             },
-            Err(_) => Cell::Invalid
+            Err(_) => CellState::Invalid
         }
     }
     
-    pub fn next_state(&mut self, new_byte: u8) -> Cell {
+    pub fn next_state(&mut self, new_byte: u8) -> CellState {
         match self {
-            Cell::Filled(_) | Cell::Invalid  | Cell::Empty => Cell::get_start(new_byte),
-            Cell::Filling(parser) => Self::get_cell_from_parser_and_byte(*parser, new_byte)
+            CellState::Filled(_) | CellState::Invalid  | CellState::Empty => CellState::get_start(new_byte),
+            CellState::Filling(parser) => Self::get_cell_from_parser_and_byte(*parser, new_byte)
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Cell {
+    pub state: CellState,
+    pub properties: CellProperties
+}
+
+impl Cell {
+    fn empty(properties: CellProperties) -> Self {
+        Self {
+            properties,
+            state: CellState::Empty
         }
     }
 }
@@ -159,9 +170,9 @@ pub struct CellLine {
 }
 
 impl CellLine {
-    pub fn new(width: usize) -> Self {
+    pub fn new(width: usize, properties: CellProperties) -> Self {
         Self {
-            cells: vec![Cell::empty(); width],
+            cells: vec![Cell::empty(properties); width],
             display: Vec::new()
         }
     }
@@ -184,7 +195,7 @@ impl Screen {
     pub fn empty(line_cell_size: RectSize) -> Self {
         let line_cell_width = line_cell_size.width as usize;
         let line_cell_height = line_cell_size.height as usize;
-        let screen_lines: Vec<CellLine> = vec![CellLine::new(line_cell_width); line_cell_height];
+        let screen_lines: Vec<CellLine> = vec![CellLine::new(line_cell_width, CellProperties::new()); line_cell_height];
         let history: VecDeque<CellLine> = VecDeque::new();
         
         Self {
@@ -257,14 +268,15 @@ impl Screen {
         let buffer = self.buffer.clone();
         
         for data in buffer {
-            let cell = self.screen_lines[row_number].cells[column_number].next_state(data);
+            let cell_state = self.screen_lines[row_number].cells[column_number].state.next_state(data);
             
-            let advance = match cell {
-                Cell::Filled(_) | Cell::Invalid => true,
+            let advance = match cell_state {
+                CellState::Filled(_) | CellState::Invalid => true,
                 _ => false
             };
             
-            self.screen_lines[row_number].cells[column_number] = cell;
+            self.screen_lines[row_number].cells[column_number].state = cell_state;
+            self.screen_lines[row_number].cells[column_number].properties = self.cursor.properties;
             
             self.screen_lines[row_number].rasterize(rasterizer);
             
@@ -287,7 +299,7 @@ impl Screen {
     fn push_line_to_history(&mut self) {
         let line = self.screen_lines.remove(0);
         self.history.push_front(line);
-        self.screen_lines.push(CellLine::new(self.line_cell_width));
+        self.screen_lines.push(CellLine::new(self.line_cell_width, CellProperties::new()));
     }
 }
 
