@@ -12,10 +12,10 @@ use std::sync::{Arc, RwLock};
 struct Vertex {
     position: [f32; 2],
     tex_coords: [f32; 2],
-    colour: [f32; 4],
+    fg_colour: [f32; 4],
 }
 
-implement_vertex!(Vertex, position, tex_coords, colour);
+implement_vertex!(Vertex, position, tex_coords, fg_colour);
 
 
 pub struct Drawer<'a> {
@@ -41,27 +41,30 @@ impl ProgramWrapper {
 
                     in vec2 position;
                     in vec2 tex_coords;
-                    in vec4 colour;
+                    in vec4 fg_colour;
 
                     out vec2 v_tex_coords;
-                    out vec4 v_colour;
+                    out vec4 v_fg_colour;
 
                     void main() {
                         gl_Position = vec4(position, 0.0, 1.0);
                         v_tex_coords = tex_coords;
-                        v_colour = colour;
+                        v_fg_colour = fg_colour;
                     }
                 ",
 
                 fragment: "
                     #version 140
+                    
                     uniform sampler2D tex;
+                    
                     in vec2 v_tex_coords;
-                    in vec4 v_colour;
+                    in vec4 v_fg_colour;
+                    
                     out vec4 f_colour;
 
                     void main() {
-                        f_colour = v_colour * vec4(1.0, 1.0, 1.0, texture(tex, v_tex_coords).r);
+                        f_colour = v_fg_colour * vec4(1.0, 1.0, 1.0, texture(tex, v_tex_coords).r);
                     }
                 "
         })
@@ -180,38 +183,38 @@ impl <'a> Drawer<'a> {
         let tex_bottom_right_x = tex_rect.bottom_right().x as f32 / atlas_width as f32;
         let tex_bottom_right_y = tex_rect.bottom_right().y as f32 / atlas_height as f32 * -1.0;
         
-        let colour = [0.0, 0.0, 0.0, 1.0];
+        let fg_colour = cell.fg_color.to_opengl_color();
         
         [
             Vertex {
                 position: [pos_top_left_x, pos_top_left_y],
                 tex_coords: [tex_top_left_x, tex_top_left_y],
-                colour
+                fg_colour
             },
             Vertex {
                 position: [pos_top_left_x, pos_bottom_right_y],
                 tex_coords: [tex_top_left_x, tex_bottom_right_y],
-                colour
+                fg_colour
             },
             Vertex {
                 position: [pos_bottom_right_x, pos_top_left_y],
                 tex_coords: [tex_bottom_right_x, tex_top_left_y],
-                colour
+                fg_colour
             },
             Vertex {
                 position: [pos_top_left_x, pos_bottom_right_y],
                 tex_coords: [tex_top_left_x, tex_bottom_right_y],
-                colour
+                fg_colour
             },
             Vertex {
                 position: [pos_bottom_right_x, pos_top_left_y],
                 tex_coords: [tex_bottom_right_x, tex_top_left_y],
-                colour
+                fg_colour
             },
             Vertex {
                 position: [pos_bottom_right_x, pos_bottom_right_y],
                 tex_coords: [tex_bottom_right_x, tex_bottom_right_y],
-                colour
+                fg_colour
             }
         ]
     }
