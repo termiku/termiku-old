@@ -15,3 +15,4 @@ pub mod term;
 pub mod rasterizer;
 pub mod window_event;
 pub mod unicode;
+pub mod control;

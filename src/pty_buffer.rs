@@ -1,6 +1,7 @@
 use crate::rasterizer::*;
 use crate::atlas::RectSize;
 use crate::unicode::*;
+use crate::control::*;
 
 use std::collections::VecDeque;
 
@@ -200,7 +201,7 @@ pub struct Screen {
     pub screen_lines: Vec<CellLine>,
     pub history: VecDeque<CellLine>,
     pub cursor: Cursor,
-    pub buffer: Vec<u8>
+    pub control_parser: ControlSeqenceParser
 }
 
 impl Screen {
@@ -216,7 +217,7 @@ impl Screen {
             screen_lines,
             history,
             cursor: Cursor::new(),
-            buffer: Vec::with_capacity(32),
+            control_parser: ControlSeqenceParser::new()
         }
     }
     
@@ -227,11 +228,36 @@ impl Screen {
     
     pub fn add_to_buffer(&mut self, data: &[u8], rasterizer: &mut Rasterizer) {
         for byte in data.iter() {
-            self.buffer.push(*byte);
-            if self.is_buffer_enough() {
-                self.handle_buffer(rasterizer);
+            if self.control_parser.is_parsing() {
+                match self.control_parser.parse_byte(*byte) {
+                    Ok(maybe_control) => {
+                        if let Some(control) = maybe_control {
+                            self.handle_control_sequence(control);
+                        }
+                    },
+                    Err(_) => {
+                        let mut buffer = self.control_parser.reset();
+                        if *byte == CSI_1 {
+                            self.control_parser.parse_byte(*byte);
+                        } else {
+                            buffer.push(*byte);
+                        }
+                        
+                        for invalid_byte in buffer.into_iter() {
+                            self.push_byte_to_screen(invalid_byte, rasterizer);
+                        }
+                    }
+                }
+            } else if *byte == CSI_1 {
+                self.control_parser.parse_byte(*byte);
+            } else {
+                self.push_byte_to_screen(*byte, rasterizer);
             }
         }
+    }
+    
+    pub fn handle_control_sequence(&mut self, control: ControlType) {
+        
     }
     
     // incorrect. Should only go down one line, not go back at the beginning, but whatever for now,
@@ -244,21 +270,6 @@ impl Screen {
         } else {
             self.cursor.position.y += 1;
         }
-    }
-     
-    // check here for escape sequences and whatnot
-    fn is_buffer_enough(&self) -> bool {
-        true
-    }
-    
-    fn handle_buffer(&mut self, rasterizer: &mut Rasterizer) {
-        // Or later, handle the escape sequence    
-        self.push_buffer(rasterizer);
-    }
-    
-    fn push_buffer(&mut self, rasterizer: &mut Rasterizer) {
-        self.push_buffer_to_screen(rasterizer);
-        self.buffer.clear();
     }
     
     fn get_position_pointed_by_cursor(&self) -> (usize, usize) {
@@ -275,37 +286,34 @@ impl Screen {
         (row_number, column_number)
     }
     
-    fn push_buffer_to_screen(&mut self, rasterizer: &mut Rasterizer) {
+    fn push_byte_to_screen(&mut self, byte: u8, rasterizer: &mut Rasterizer) {
         let (mut row_number, mut column_number) = self.get_position_pointed_by_cursor();
-        let buffer = self.buffer.clone();
         
-        for data in buffer {
-            let cell_state = self.screen_lines[row_number].cells[column_number].state.next_state(data);
-            
-            let advance = match cell_state {
-                CellState::Filled(_) | CellState::Invalid => true,
-                _ => false
-            };
-            
-            self.screen_lines[row_number].cells[column_number].state = cell_state;
-            self.screen_lines[row_number].cells[column_number].properties = self.cursor.properties;
-            
-            self.screen_lines[row_number].rasterize(rasterizer);
-            
-            if advance {
-                column_number += 1;
-                if column_number >= self.line_cell_width {
-                    row_number += 1;
-                    column_number = 0;
-                    if row_number >= self.line_cell_height {
-                        self.push_line_to_history();
-                    }
+        let cell_state = self.screen_lines[row_number].cells[column_number].state.next_state(byte);
+        
+        let advance = match cell_state {
+            CellState::Filled(_) | CellState::Invalid => true,
+            _ => false
+        };
+        
+        self.screen_lines[row_number].cells[column_number].state = cell_state;
+        self.screen_lines[row_number].cells[column_number].properties = self.cursor.properties;
+        
+        self.screen_lines[row_number].rasterize(rasterizer);
+        
+        if advance {
+            column_number += 1;
+            if column_number >= self.line_cell_width {
+                row_number += 1;
+                column_number = 0;
+                if row_number >= self.line_cell_height {
+                    self.push_line_to_history();
                 }
             }
-            
-            self.cursor.position.x = column_number + 1;
-            self.cursor.position.y = row_number + 1;
         }
+        
+        self.cursor.position.x = column_number + 1;
+        self.cursor.position.y = row_number + 1;
     }
     
     fn push_line_to_history(&mut self) {
