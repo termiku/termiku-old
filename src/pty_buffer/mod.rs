@@ -1,3 +1,5 @@
+mod handle_control_sequence;
+
 use crate::rasterizer::*;
 use crate::atlas::RectSize;
 use crate::unicode::*;
@@ -186,7 +188,7 @@ impl CellLine {
     pub fn new(width: usize, properties: CellProperties) -> Self {
         Self {
             cells: vec![Cell::empty(properties); width],
-            display: Vec::new()
+            display: vec![DisplayCellLine::empty()]
         }
     }
     
@@ -255,10 +257,7 @@ impl Screen {
             }
         }
     }
-    
-    pub fn handle_control_sequence(&mut self, control: ControlType) {
-        
-    }
+
     
     // incorrect. Should only go down one line, not go back at the beginning, but whatever for now,
     // im done
@@ -376,7 +375,9 @@ impl PtyBuffer {
             display_lines.push(line.display.clone());
         }
         
-        display_lines.iter().flat_map(|x| x).rev().cloned().collect()
+        let display_lines: Vec<DisplayCellLine> = display_lines.iter().flatten().rev().cloned().collect();
+        
+        display_lines
     }
     
     pub fn dimensions_updated(&mut self) {        

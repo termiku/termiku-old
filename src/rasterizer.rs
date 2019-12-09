@@ -30,6 +30,14 @@ pub struct DisplayCellLine {
     pub cells: Vec<DisplayCell>
 }
 
+impl DisplayCellLine {
+    pub fn empty() -> Self {
+        Self {
+            cells: vec![]
+        }
+    }
+}
+
 
 struct CLibsWrapper {
     font: NonNull<hb_font_t>,
