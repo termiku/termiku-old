@@ -130,13 +130,25 @@ impl CellState {
     }
     
     #[inline]
-    fn get_cell_from_parser_and_byte(mut parser: Utf8Parser, first_byte: u8) -> Self {
-        match parser.parse_byte(first_byte) {
+    fn get_cell_from_parser_and_byte(mut parser: Utf8Parser, byte: u8) -> Self {
+        match parser.parse_byte(byte) {
             Ok(maybe_char) => match maybe_char {
                 Some(char) => CellState::Filled(char),
                 None => CellState::Filling(parser)
             },
-            Err(_) => CellState::Invalid
+            Err(err) => {
+                if let Utf8ParserError::InvalidContinuationByte = err {
+                    match parser.parse_byte(byte) {
+                        Ok(maybe_char) => match maybe_char {
+                            Some(char) => CellState::Filled(char),
+                            None => CellState::Filling(parser)
+                        },
+                        Err(_) => Self::Invalid
+                    }
+                } else {
+                    Self::Invalid
+                }
+            }
         }
     }
     

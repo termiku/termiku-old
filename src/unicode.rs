@@ -8,7 +8,8 @@ pub enum Utf8ParserError {
     InvalidByte,
     InvalidContinuationByte,
     InvalidCodePoint(u32),
-    UnexpectedContinuationByte
+    UnexpectedContinuationByte,
+    OverlongEncoding
 }
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -67,6 +68,26 @@ impl Utf8Parser {
                 // If we get an invalid continuation byte, reset parsing state.
                 self.length = 0;
                 return Err(InvalidContinuationByte)
+            }
+            
+            // There's no overlong encoding detection for lengths of 2.
+            // This is because the leading byte would be required to be either 0xC0 or 0xC1, which are always invalid.
+            // Unicode recommends to return an error condition at the first disallowed byte, so we never check here.
+
+            // Detects an overlong encoding of length 3.
+            // The valid range of code points for 3 bytes is U+800 to U+FFFF.
+            // This means that the first continuation byte needs to be at least 0xA0 to reach U+800.
+            if self.length == 2 && self.value == 0 && byte < 0xA0 {
+                self.length = 0;
+                return Err(OverlongEncoding)
+            }
+
+            // Detects an overlong encoding of length 4.
+            // The valid range of code points for 4 bytes is U+10000 to U+10FFFF.
+            // This means that the first continuation byte needs to be at least 0x90 to reach U+10000.
+            if self.length == 3 && self.value == 0 && byte < 0x90 {
+                self.length = 0;
+                return Err(OverlongEncoding)
             }
 
             self.value = (self.value << 6) | (byte & CONT_MASK) as u32;
