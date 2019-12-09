@@ -25,6 +25,40 @@ impl Screen {
     pub fn default_color_background(&mut self) {
         self.cursor.properties.bg = CellProperties::new().bg;
     }
+    
+    // Color is encoded as r * 36 + g * 6 + b
+    fn get_color_cube(&mut self, color: u8) -> Color {
+        let blue = get_hex_color_from_cube_encoding(color % 6);
+        let green = get_hex_color_from_cube_encoding((color / 6) % 6);
+        let red = get_hex_color_from_cube_encoding(color / 36);
+        
+        Color(red, green, blue, 255)
+    }
+    
+    pub fn cube_color_foreground(&mut self, color: u8) {
+        self.cursor.properties.fg = self.get_color_cube(color);
+    }
+    
+    pub fn cube_color_background(&mut self, color: u8) {
+        self.cursor.properties.bg = self.get_color_cube(color);
+    }
+    
+    // no idea if its correct, taken from https://jonasjacek.github.io/colors/
+    fn get_grayscale_color(&mut self, color: u8) -> Color {
+        let color = 8 + color * 10;
+        
+        Color(color, color, color, 255)
+    }
+    
+    pub fn grayscale_color_foreground(&mut self, color: u8) {
+        self.cursor.properties.fg = self.get_grayscale_color(color);
+        
+    }
+    
+    pub fn grayscale_color_background(&mut self, color: u8) {
+        self.cursor.properties.fg = self.get_grayscale_color(color);
+        
+    }
 
 }
 
@@ -98,5 +132,18 @@ impl SimpleColor {
             BrightCyan => Color(0, 255, 255, 255),
             BrightWhite => Color(255, 255, 255, 255),
         }
+    }
+}
+
+// no idea if its correct, taken from https://jonasjacek.github.io/colors/
+fn get_hex_color_from_cube_encoding(data: u8) -> u8 {
+    match data {
+        0 => 0,
+        1 => 95,
+        2 => 135,
+        3 => 175,
+        4 => 215,
+        5 => 255,
+        _ => unreachable!()
     }
 }
