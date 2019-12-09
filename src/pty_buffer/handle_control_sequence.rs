@@ -1,4 +1,5 @@
 use super::*;
+use super::sgr::*;
 
 use crate::control::control_type::*;
 use ControlType::*;
@@ -144,6 +145,41 @@ impl Screen {
                 println!("after: cursor x: {}, cursor_y: {}", cursor_x, cursor_y);
                 
             },
+            
+            // One of the heaviest control sequence, which changes the way characters are now
+            // printed on screen.
+            // Support a wide variety of parameters and parameters length.
+            // https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_parameters
+            // 
+            // Dispatches to functions inside sgr.rs
+            SelectGraphicRendition(parameters, length) => {
+                if length == 0 {
+                    // If length is 0, treats it as a reset
+                    self.reset_graphics();
+                } else {
+                    // We will now have to determine what kind of graphic properties is selected
+                    let property = parameters[0];
+                    
+                    match property {
+                        0 => self.reset_graphics(),
+                        
+                        
+                        30..=37 => self.simple_color_foreground(property as u8 - 30),
+                        
+                        39 => self.default_color_foreground(),
+                        
+                        40..=47 => self.simple_color_background(property as u8 - 40),
+                        
+                        49 => self.default_color_background(),
+                        
+                        90..=97 => self.simple_color_foreground(property as u8 - 90 + 8),
+                        100..=107 => self.simple_color_background(property as u8 - 100 + 8),
+                        
+                        _ => {}
+                    } 
+                }
+            },
+            
             _ => {}
         }
     }

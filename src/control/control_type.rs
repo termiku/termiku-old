@@ -76,5 +76,15 @@ pub enum ControlType {
     ///   
     /// Pn1 = 0x01  
     /// Pn2 = 0x01  
-    CursorPosition(u16, u16)
+    CursorPosition(u16, u16),
+    
+    /// SGR
+    /// CSI Ps... 06/13
+    /// CSI Ps... 0x6D
+    /// CSI Ps... m
+    /// 
+    /// Ps = 0
+    /// 
+    /// 0 is the parameters buffer, 1 is the actual length of data inside 
+    SelectGraphicRendition([u16; 5], u8)
 }

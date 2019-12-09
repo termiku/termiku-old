@@ -1,4 +1,5 @@
 mod handle_control_sequence;
+mod sgr;
 
 use crate::rasterizer::*;
 use crate::atlas::RectSize;
@@ -61,7 +62,7 @@ pub struct CellProperties {
 impl CellProperties {
     pub fn new() -> Self {
         Self {
-            fg: Color(255, 0, 0, 255),
+            fg: Color(0, 0, 0, 255),
             bg: Color(1, 1, 1, 255)
         }
     }
