@@ -18,7 +18,7 @@ pub enum ControlType {
     /// CSI Pn A  
     ///   
     /// Pn = 0x01
-    CursorUp(usize),
+    CursorUp(u16),
     
     /// CUD  
     /// CSI Pn 04/02  
@@ -26,7 +26,7 @@ pub enum ControlType {
     /// CSI Pn B  
     ///   
     /// Pn = 0x01  
-    CursorDown(usize),
+    CursorDown(u16),
     
     /// CUF  
     /// CSI Pn 04/03  
@@ -34,7 +34,7 @@ pub enum ControlType {
     /// CSI Pn C  
     ///   
     /// Pn = 0x01  
-    CursorRight(usize),
+    CursorRight(u16),
     
     /// CUB  
     /// CSI Pn 04/04  
@@ -42,7 +42,7 @@ pub enum ControlType {
     /// CSI Pn D  
     ///   
     /// Pn = 0x01  
-    CursorLeft(usize),
+    CursorLeft(u16),
     
     /// CNL  
     /// CSI Pn 04/05  
@@ -50,7 +50,7 @@ pub enum ControlType {
     /// CSI Pn E  
     ///   
     /// Pn = 0x01  
-    CursorNextLine(usize),
+    CursorNextLine(u16),
     
     /// CPL  
     /// CSI Pn 04/06  
@@ -58,7 +58,7 @@ pub enum ControlType {
     /// CSI Pn F  
     ///   
     /// Pn = 0x01  
-    CursorPrecedingLine(usize),
+    CursorPrecedingLine(u16),
     
     /// CHA  
     /// CSI Pn 04/07  
@@ -66,7 +66,7 @@ pub enum ControlType {
     /// CSI Pn G  
     ///   
     /// Pn = 0x01  
-    CursorCharacterAbsolute(usize),
+    CursorCharacterAbsolute(u16),
     
     
     /// CUP  
@@ -76,5 +76,5 @@ pub enum ControlType {
     ///   
     /// Pn1 = 0x01  
     /// Pn2 = 0x01  
-    CursorPosition(usize, usize)
+    CursorPosition(u16, u16)
 }

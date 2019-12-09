@@ -39,10 +39,10 @@ pub struct ControlSeqenceParser {
     parameter_length: usize,
     intermediary_length: usize,
     
-    parameters_buffer: Vec<Option<usize>>,
+    parameters_buffer: Vec<Option<u16>>,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Debug)]
 enum ParserState {
     NotParsing,
     ParsingCsi,
@@ -147,7 +147,7 @@ impl ControlSeqenceParser {
     }
     
     pub fn is_parsing(&self) -> bool {
-        if let ParserState::NotParsing = self.state {
+        if self.state == ParserState::NotParsing {
             false
         } else {
             true
