@@ -256,8 +256,8 @@ impl Screen {
         }
     }
     
-    pub fn handle_control_sequence(&mut self, control: ControlType) {
-        
+    pub fn handle_control_sequence(&mut self, control: control_type::ControlType) {
+        println!("Found a control sequence: {:?}", control);
     }
     
     // incorrect. Should only go down one line, not go back at the beginning, but whatever for now,
