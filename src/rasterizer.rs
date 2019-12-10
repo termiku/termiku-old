@@ -19,7 +19,8 @@ use std::ptr::NonNull;
 pub struct DisplayCell {
     pub ftg: FreeTypeGlyph,
     pub fg_color: Color,
-    pub bg_color: Option<Color>
+    pub bg_color: Option<Color>,
+    pub is_cursor: bool,
 }
 
 // Contains a cell line, aka a line of cell to be rendered.
@@ -231,6 +232,7 @@ impl Rasterizer {
                     ftg,
                     fg_color: cell.properties.fg,
                     bg_color: cell.properties.bg,
+                    is_cursor: false
                 };
                 cell_index += 1;
                 display

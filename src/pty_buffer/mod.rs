@@ -1,5 +1,5 @@
 mod handle_control_sequence;
-mod sgr;
+pub mod sgr;
 
 use crate::rasterizer::*;
 use crate::atlas::RectSize;
@@ -212,10 +212,17 @@ pub struct Screen {
 }
 
 impl Screen {
-    pub fn empty(line_cell_size: RectSize) -> Self {
+    pub fn empty(rasterizer: &mut Rasterizer) -> Self {
+        let line_cell_size = rasterizer.get_line_cell_size();
+        
         let line_cell_width = line_cell_size.width as usize;
         let line_cell_height = line_cell_size.height as usize;
-        let screen_lines: Vec<CellLine> = vec![CellLine::new(line_cell_width, CellProperties::new()); line_cell_height];
+        let mut screen_lines: Vec<CellLine> = vec![CellLine::new(line_cell_width, CellProperties::new()); line_cell_height];
+        
+        for line in screen_lines.iter_mut() {
+            line.rasterize(rasterizer)
+        }
+        
         let history: VecDeque<CellLine> = VecDeque::new();
         
         Self {
@@ -334,8 +341,8 @@ pub struct PtyBuffer {
 }
 
 impl PtyBuffer {
-    pub fn new(rasterizer: WrappedRasterizer) -> PtyBuffer {
-        let screen = Screen::empty(rasterizer.read().unwrap().get_line_cell_size());
+    pub fn new(rasterizer: WrappedRasterizer) -> PtyBuffer {    
+        let screen = Screen::empty(&mut rasterizer.write().unwrap());
         
         Self {
             rasterizer,
@@ -380,7 +387,15 @@ impl PtyBuffer {
             display_lines.push(line.display.clone());
         }
         
-        let display_lines: Vec<DisplayCellLine> = display_lines.iter().flatten().rev().cloned().collect();
+        let mut display_lines: Vec<DisplayCellLine> = display_lines.iter().flatten().cloned().collect();
+        
+        if let Some(line) = display_lines.get_mut(self.screen.cursor.position.y - 1) {
+            if let Some(cell) = line.cells.get_mut(self.screen.cursor.position.x - 1) {
+                cell.is_cursor = true;
+            }
+        }
+        
+        display_lines.reverse();
         
         display_lines
     }

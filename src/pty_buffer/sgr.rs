@@ -73,7 +73,7 @@ impl Screen {
 /// 4th parameter is alpha channel, which will always be 255 for simple colors
 
 #[repr(u8)]
-enum SimpleColor {
+pub enum SimpleColor {
     Black = 0,
     Red,
     Green,
