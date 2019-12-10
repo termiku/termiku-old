@@ -56,7 +56,7 @@ impl Screen {
     }
     
     pub fn grayscale_color_background(&mut self, color: u8) {
-        self.cursor.properties.fg = self.get_grayscale_color(color);
+        self.cursor.properties.bg = Some(self.get_grayscale_color(color));
     }
     
     pub fn true_color_foreground(&mut self, r: u8, g: u8, b: u8) {
