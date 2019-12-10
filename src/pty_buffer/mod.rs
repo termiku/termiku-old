@@ -29,7 +29,7 @@ impl Position {
 
 // R G B A
 // Black is 0,0,0
-// White is 1,1,1
+// White is 255, 255, 255
 #[derive(Copy, Clone, Debug)]
 pub struct Color(pub u8, pub u8, pub u8, pub u8);
 
