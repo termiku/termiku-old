@@ -9,13 +9,21 @@ use glium::uniforms::Uniforms;
 use std::sync::{Arc, RwLock};
 
 #[derive(Copy, Clone, Debug)]
-struct Vertex {
+struct CharVertex {
     position: [f32; 2],
     tex_coords: [f32; 2],
-    fg_colour: [f32; 4],
+    colour: [f32; 4],
 }
 
-implement_vertex!(Vertex, position, tex_coords, fg_colour);
+implement_vertex!(CharVertex, position, tex_coords, colour);
+
+#[derive(Copy, Clone, Debug)]
+struct BgVertex {
+    position: [f32; 2],
+    colour: [f32; 4],
+}
+
+implement_vertex!(BgVertex, position, colour);
 
 
 pub struct Drawer<'a> {
@@ -28,7 +36,8 @@ pub struct Drawer<'a> {
 }
 
 struct ProgramWrapper {
-    pub char_program: Program
+    pub char_program: Program,
+    pub background_program: Program,
 }
 
 impl ProgramWrapper {
@@ -41,15 +50,15 @@ impl ProgramWrapper {
 
                     in vec2 position;
                     in vec2 tex_coords;
-                    in vec4 fg_colour;
+                    in vec4 colour;
 
                     out vec2 v_tex_coords;
-                    out vec4 v_fg_colour;
+                    out vec4 v_colour;
 
                     void main() {
                         gl_Position = vec4(position, 0.0, 1.0);
                         v_tex_coords = tex_coords;
-                        v_fg_colour = fg_colour;
+                        v_colour = colour;
                     }
                 ",
 
@@ -59,19 +68,50 @@ impl ProgramWrapper {
                     uniform sampler2D tex;
                     
                     in vec2 v_tex_coords;
-                    in vec4 v_fg_colour;
+                    in vec4 v_colour;
                     
                     out vec4 f_colour;
 
                     void main() {
-                        f_colour = v_fg_colour * vec4(1.0, 1.0, 1.0, texture(tex, v_tex_coords).r);
+                        f_colour = v_colour * vec4(1.0, 1.0, 1.0, texture(tex, v_tex_coords).r);
+                    }
+                "
+        })
+        .unwrap();
+        
+        let background_program = program!(
+            display,
+            140 => {
+                vertex: "
+                    #version 140
+
+                    in vec2 position;
+                    in vec4 colour;
+                    
+                    out vec4 v_colour;
+
+                    void main() {
+                        gl_Position = vec4(position, 0.0, 1.0);
+                        v_colour = colour;
+                    }
+                ",
+                fragment: "
+                    #version 140
+                    
+                    in vec4 v_colour;
+                    
+                    out vec4 f_colour;
+
+                    void main() {
+                        f_colour = v_colour;
                     }
                 "
         })
         .unwrap();
         
         Self {
-            char_program
+            char_program,
+            background_program,
         }
     }
 }
@@ -144,20 +184,24 @@ impl <'a> Drawer<'a> {
         }
     }
     
-    fn get_vertices_for_cell(&self, cell: &DisplayCell, cell_size: RectSize, x: u32, y: u32) -> [Vertex; 6] {
+    fn get_vertices_for_cell(&self, cell: &DisplayCell, cell_size: RectSize, delta_height: u32, x: u32, y: u32) -> (Option<[BgVertex; 6]>, [CharVertex; 6]) {
         let actual_x = x as i32;
         let actual_y = y as i32;
         
+        let background_x = actual_x;
+        let background_y = actual_y;
+        
         let tex_rect = self.atlas.get(cell.ftg.id()).unwrap();
-        let cell_height = cell_size.height;        
+        let cell_width = cell_size.width;
+        let cell_height = cell_size.height;
         
         let delta_cell_y = cell_height as i32 - tex_rect.size.height as i32;
         let actual_y = actual_y + delta_cell_y;
-        let actual_x = actual_x + 1;
         
         let delta_glyph_y = (cell.ftg.height - cell.ftg.bearing_y) / 64;
-        
         let actual_y = actual_y + delta_glyph_y as i32;
+        
+        let actual_y = actual_y - delta_height as i32;
         
         let delta_glyph_x = cell.ftg.bearing_x / 64;
         let actual_x = (actual_x as i64 + delta_glyph_x) as i32;
@@ -174,8 +218,14 @@ impl <'a> Drawer<'a> {
         let pos_top_left_x = ((actual_x as f32 / screen_width as f32) - 0.5 ) * 2.0;
         let pos_top_left_y = ((actual_y as f32 / screen_height as f32) - 0.5 ) * -2.0;
         
+        let background_top_left_x = ((background_x as f32 / screen_width as f32) - 0.5 ) * 2.0;
+        let background_top_left_y = ((background_y as f32 / screen_height as f32) - 0.5 ) * -2.0;
+        
         let pos_bottom_right_x = (((actual_x + tex_rect.size.width as i32) as f32 / screen_width as f32) - 0.5 ) * 2.0;
         let pos_bottom_right_y = (((actual_y + tex_rect.size.height as i32) as f32 / screen_height as f32) - 0.5 ) * -2.0;
+        
+        let background_bottom_right_x = (((background_x + cell_width as i32) as f32 / screen_width as f32) - 0.5 ) * 2.0;
+        let background_bottom_right_y = (((background_y + cell_height as i32) as f32 / screen_height as f32) - 0.5 ) * -2.0;
         
         let tex_top_left_x = tex_rect.top_left().x as f32 / atlas_width as f32;
         let tex_top_left_y = tex_rect.top_left().y as f32 / atlas_height as f32 * -1.0;
@@ -185,55 +235,98 @@ impl <'a> Drawer<'a> {
         
         let fg_colour = cell.fg_color.to_opengl_color();
         
-        [
-            Vertex {
+        let char_vertices = [
+            CharVertex {
                 position: [pos_top_left_x, pos_top_left_y],
                 tex_coords: [tex_top_left_x, tex_top_left_y],
-                fg_colour
+                colour: fg_colour,
             },
-            Vertex {
+            CharVertex {
                 position: [pos_top_left_x, pos_bottom_right_y],
                 tex_coords: [tex_top_left_x, tex_bottom_right_y],
-                fg_colour
+                colour: fg_colour,
             },
-            Vertex {
+            CharVertex {
                 position: [pos_bottom_right_x, pos_top_left_y],
                 tex_coords: [tex_bottom_right_x, tex_top_left_y],
-                fg_colour
+                colour: fg_colour,
             },
-            Vertex {
+            CharVertex {
                 position: [pos_top_left_x, pos_bottom_right_y],
                 tex_coords: [tex_top_left_x, tex_bottom_right_y],
-                fg_colour
+                colour: fg_colour,
             },
-            Vertex {
+            CharVertex {
                 position: [pos_bottom_right_x, pos_top_left_y],
                 tex_coords: [tex_bottom_right_x, tex_top_left_y],
-                fg_colour
+                colour: fg_colour,
             },
-            Vertex {
+            CharVertex {
                 position: [pos_bottom_right_x, pos_bottom_right_y],
                 tex_coords: [tex_bottom_right_x, tex_bottom_right_y],
-                fg_colour
+                colour: fg_colour,
             }
-        ]
+        ];
+        
+        let background_vertices = match cell.bg_color {
+            None => None,
+            Some(colour) => {
+                let bg_colour = colour.to_opengl_color();
+                Some(
+                    [
+                       BgVertex {
+                           position: [background_top_left_x, background_top_left_y],
+                           colour: bg_colour
+                       },
+                       BgVertex {
+                           position: [background_top_left_x, background_bottom_right_y],
+                           colour: bg_colour
+                       },
+                       BgVertex {
+                           position: [background_bottom_right_x, background_top_left_y],
+                           colour: bg_colour
+                       },
+                       BgVertex {
+                           position: [background_top_left_x, background_bottom_right_y],
+                           colour: bg_colour
+                       },
+                       BgVertex {
+                           position: [background_bottom_right_x, background_top_left_y],
+                           colour: bg_colour
+                       },
+                       BgVertex {
+                           position: [background_bottom_right_x, background_bottom_right_y],
+                           colour: bg_colour
+                       }
+                   ]
+                )
+            }
+        };
+        
+        (background_vertices, char_vertices)
     }
     
-    fn get_vertices_for_line(&self, line: &DisplayCellLine, cell_size: RectSize, y: u32) -> Vec<Vertex> {
+    fn get_vertices_for_line(&self, line: &DisplayCellLine, cell_size: RectSize, delta_height: u32, y: u32) -> (Vec<BgVertex>, Vec<CharVertex>) {
         let mut x = 0;
         
-        let mut vertices: Vec<Vertex> = Vec::with_capacity(line.cells.len());  
+        let mut bg_vertices: Vec<BgVertex> = Vec::with_capacity(line.cells.len()); 
+        let mut char_vertices: Vec<CharVertex> = Vec::with_capacity(line.cells.len());  
         
         for cell in line.cells.iter() {
-            vertices.extend(&self.get_vertices_for_cell(cell, cell_size, x, y));
+            let vertices = self.get_vertices_for_cell(cell, cell_size, delta_height, x, y);
+            
+            if let Some(bg) = &vertices.0 {
+                bg_vertices.extend(bg);
+            }
+            
+            char_vertices.extend(&vertices.1);
             x += cell_size.width;
         }
         
-        vertices
-        
+        (bg_vertices, char_vertices)
     }
     
-    fn draw_vertex(&self, vertex_buffer: &VertexBuffer<Vertex>, frame: &mut Frame, uniforms: impl Uniforms) {
+    fn draw_char_vertex(&self, vertex_buffer: &VertexBuffer<CharVertex>, frame: &mut Frame, uniforms: impl Uniforms) {
         frame
             .draw(
                 vertex_buffer,
@@ -248,8 +341,23 @@ impl <'a> Drawer<'a> {
             .unwrap();
     }
     
+    fn draw_bg_vertex(&self, vertex_buffer: &VertexBuffer<BgVertex>, frame: &mut Frame) {
+         frame
+             .draw(
+                 vertex_buffer,
+                 &self.index_buffer,
+                 &self.program.background_program,
+                 &glium::uniforms::EmptyUniforms,
+                 &glium::DrawParameters {
+                     blend: glium::Blend::alpha_blending(),
+                     ..Default::default()
+                 },
+             )
+             .unwrap();
+     }
+    
     pub fn render_lines(&mut self, lines: &[DisplayCellLine],
-        cell_size: RectSize, display: &Display, frame: &mut Frame) {
+        cell_size: RectSize, delta_height: u32, display: &Display, frame: &mut Frame) {
         
         let cell_height = cell_size.height;
         
@@ -260,23 +368,29 @@ impl <'a> Drawer<'a> {
         self.prepare_atlas(&lines_to_render);
         
         let mut current_height = 0;
-        let mut vertices: Vec<Vertex> = vec![];
+        let mut bg_vertices: Vec<BgVertex> = vec![];
+        let mut char_vertices: Vec<CharVertex> = vec![];
 
         for line in lines_to_render {
-            vertices.append(&mut self.get_vertices_for_line(line, cell_size, current_height));
+            let mut vertices = self.get_vertices_for_line(line, cell_size, delta_height, current_height);
+            
+            bg_vertices.append(&mut vertices.0);
+            char_vertices.append(&mut vertices.1);
             current_height += cell_height;
         }
         
-        let vertex_buffer = VertexBuffer::new(display, &vertices).unwrap();
+        let bg_vertex_buffer = VertexBuffer::new(display, &bg_vertices).unwrap();
+        let char_vertex_buffer = VertexBuffer::new(display, &char_vertices).unwrap();
             
         let sampler = self.atlas.atlas
             .sampled()
             .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest);
-            
+        
         let char_uniforms = uniform! {
             tex: sampler
         };
         
-        self.draw_vertex(&vertex_buffer, frame, char_uniforms);
+        self.draw_bg_vertex(&bg_vertex_buffer, frame);
+        self.draw_char_vertex(&char_vertex_buffer, frame, char_uniforms);
     }
 }

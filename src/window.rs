@@ -106,6 +106,7 @@ pub fn window(config: Config) {
     let mut drawer = Drawer::new(&display, config.clone());
     let rasterizer = Arc::new(RwLock::new(Rasterizer::new(config.clone(), get_display_size(&display))));
     let cell_size = rasterizer.read().unwrap().cell_size;
+    let delta_cell_height = rasterizer.read().unwrap().delta_cell_height;
 
     let mut manager = TermManager::new(config.clone(), rasterizer.clone());
     let mut dimensions = get_display_size(&display); 
@@ -160,7 +161,7 @@ pub fn window(config: Config) {
             )
             .unwrap();
             
-            drawer.render_lines(&lines, cell_size, &display, &mut target);
+            drawer.render_lines(&lines, cell_size, delta_cell_height, &display, &mut target);
             
             target.finish().unwrap();
         }

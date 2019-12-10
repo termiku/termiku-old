@@ -116,9 +116,6 @@ impl Screen {
                 let cursor_x = &mut self.cursor.position.x;
                 let cursor_y = &mut self.cursor.position.y;
                 
-                println!("row: {}, column: {}", row, column);
-                println!("before: cursor x: {}, cursor_y: {}", cursor_x, cursor_y);
-                
                 let row = row as usize;
                 let column = column as usize;
                 
@@ -140,10 +137,7 @@ impl Screen {
                     } else {
                         row
                     }
-                };
-                
-                println!("after: cursor x: {}, cursor_y: {}", cursor_x, cursor_y);
-                
+                };                
             },
             
             // One of the heaviest control sequence, which changes the way characters are now
@@ -217,8 +211,12 @@ impl Screen {
                                 },
                                 
                                 // Truecolor
-                                2 => {
-                                    
+                                2 => if length >= 5 {
+                                        let r = parameters[2] as u8;
+                                        let g = parameters[3] as u8;
+                                        let b = parameters[4] as u8;
+                                        
+                                        self.true_color_background(r, g, b);
                                 },
                                 
                                 _ => {}

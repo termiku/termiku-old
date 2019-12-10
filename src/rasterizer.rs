@@ -19,7 +19,7 @@ use std::ptr::NonNull;
 pub struct DisplayCell {
     pub ftg: FreeTypeGlyph,
     pub fg_color: Color,
-    pub bg_color: Color
+    pub bg_color: Option<Color>
 }
 
 // Contains a cell line, aka a line of cell to be rendered.
@@ -56,7 +56,8 @@ pub struct Rasterizer {
     config: Config,
     dimensions: RectSize,
     wrapper: SendableCLibsWrapper,
-    pub cell_size: RectSize
+    pub cell_size: RectSize,
+    pub delta_cell_height: u32,
 }
 
 pub type WrappedRasterizer = Arc<RwLock<Rasterizer>>;
@@ -86,7 +87,8 @@ impl Rasterizer {
             config,
             dimensions,
             wrapper,
-            cell_size
+            cell_size,
+            delta_cell_height: 0,
         };
         
         rasterizer.guess_cell_size();
@@ -125,15 +127,21 @@ impl Rasterizer {
     }
     
     fn guess_cell_size(&mut self) {
-        let rasterized = self.rasterize("abcdefghijklmnopqrstuvwxyz1234567890".as_bytes());
+        let rasterized = self.rasterize("abcdefghijklmonpqrstuvwxyz0123456789 █".as_bytes());
         
         let mut current_width: i64 = 0;
         let mut current_height: i64 = 0;
+        let mut current_delta_height: i64 = 0;
         
         for ftg in rasterized.iter() {
             if ftg.height > current_height {
                 current_height = ftg.height;
             }
+            
+            if (ftg.height - ftg.bearing_y) > current_delta_height {
+                current_delta_height = ftg.height - ftg.bearing_y;
+            }
+            
             if ftg.width > current_width {
                 current_width = ftg.width;
             }
@@ -141,14 +149,16 @@ impl Rasterizer {
         
         current_width = current_width / 64;
         current_height = current_height / 64;
+        current_delta_height = current_delta_height / 64;
         
         if current_width == 0 || current_height == 0 {
-            println!("width: {}, height: {}", current_width, current_height);
+            println!("width: {}, height: {}, delta_height: {}", current_width, current_height, current_delta_height);
             panic!("Cells are too tiny!");
         }
         
-        self.cell_size.height = current_height as u32 + 1;
-        self.cell_size.width = current_width as u32 + 1;
+        self.cell_size.height = current_height as u32;
+        self.cell_size.width = current_width as u32;
+        self.delta_cell_height = current_delta_height as u32;
     }
     
     /// Get the maximum number of cell per row
@@ -188,7 +198,6 @@ impl Rasterizer {
     
     pub fn cells_to_display_cell_lines(&mut self, cells: &[Cell]) -> Vec<DisplayCellLine> {
         let line_cell_width = self.get_line_cell_width();
-        let line_cell_height = self.get_line_cell_height();
         
         let mut display_cell_lines = Vec::<DisplayCellLine>::new();
         

@@ -59,7 +59,7 @@ impl Color {
 #[derive(Copy, Clone, Debug)]
 pub struct CellProperties {
     pub fg: Color,
-    pub bg: Color
+    pub bg: Option<Color>
 }
 
 // Should probably need a Config from somewhere
@@ -67,7 +67,7 @@ impl CellProperties {
     pub fn new() -> Self {
         Self {
             fg: Color(0, 0, 0, 255),
-            bg: Color(1, 1, 1, 255)
+            bg: None
         }
     }
 }

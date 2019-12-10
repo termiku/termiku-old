@@ -15,7 +15,7 @@ impl Screen {
     }
     
     pub fn simple_color_background(&mut self, color: u8) {
-        self.cursor.properties.bg = self.get_simple_color(color);
+        self.cursor.properties.bg = Some(self.get_simple_color(color));
     }
     
     pub fn default_color_foreground(&mut self) {
@@ -40,7 +40,7 @@ impl Screen {
     }
     
     pub fn cube_color_background(&mut self, color: u8) {
-        self.cursor.properties.bg = self.get_color_cube(color);
+        self.cursor.properties.bg = Some(self.get_color_cube(color));
     }
     
     // no idea if its correct, taken from https://jonasjacek.github.io/colors/
@@ -64,7 +64,7 @@ impl Screen {
     }
     
     pub fn true_color_background(&mut self, r: u8, g: u8, b: u8) {
-        self.cursor.properties.bg = Color::from_rgb(r, g, b);
+        self.cursor.properties.bg = Some(Color::from_rgb(r, g, b));
     }
 }
 
