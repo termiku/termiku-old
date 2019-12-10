@@ -127,7 +127,7 @@ impl Rasterizer {
     }
     
     fn guess_cell_size(&mut self) {
-        let rasterized = self.rasterize("abcdefghijklmonpqrstuvwxyz0123456789 █".as_bytes());
+        let rasterized = self.rasterize("▀  ▄  █".as_bytes());
         
         let mut current_width: i64 = 0;
         let mut current_height: i64 = 0;
@@ -147,11 +147,11 @@ impl Rasterizer {
             }
         }
         
-        current_width = current_width / 64;
-        current_height = current_height / 64;
-        current_delta_height = current_delta_height / 64;
+        current_width = (current_width / 64) - 1;
+        current_height = (current_height / 64) - 1;
+        current_delta_height = (current_delta_height / 64) - 1;
         
-        if current_width == 0 || current_height == 0 {
+        if current_width < 2 || current_height < 2 {
             println!("width: {}, height: {}, delta_height: {}", current_width, current_height, current_delta_height);
             panic!("Cells are too tiny!");
         }

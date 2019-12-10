@@ -367,7 +367,8 @@ impl <'a> Drawer<'a> {
         
         self.prepare_atlas(&lines_to_render);
         
-        let mut current_height = 0;
+        // We start at an offset to look better;
+        let mut current_height = delta_height;
         let mut bg_vertices: Vec<BgVertex> = vec![];
         let mut char_vertices: Vec<CharVertex> = vec![];
 
