@@ -42,6 +42,10 @@ impl Color {
         }
     }
     
+    pub fn from_rgb(r: u8, g: u8, b: u8) -> Self {
+        Self(r, g, b, 255)
+    }
+    
     pub fn to_opengl_color(&self) -> [f32; 4] {
         [
             Self::u8_to_f32(self.0),

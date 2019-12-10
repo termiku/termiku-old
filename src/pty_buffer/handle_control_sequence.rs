@@ -185,8 +185,12 @@ impl Screen {
                                 },
                                 
                                 // Truecolor
-                                2 => {
-                                    
+                                2 => if length >= 5 {
+                                        let r = parameters[2] as u8;
+                                        let g = parameters[3] as u8;
+                                        let b = parameters[4] as u8;
+                                        
+                                        self.true_color_foreground(r, g, b);
                                 },
                                 
                                 _ => {}
