@@ -15,7 +15,7 @@ use glium::index::PrimitiveType;
 use glium::Display;
 
 use std::io::Cursor;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 use std::sync::{Arc, RwLock};
 
 pub fn window(config: Config) {    
@@ -112,10 +112,29 @@ pub fn window(config: Config) {
     let mut dimensions = get_display_size(&display); 
     let mut lines = manager.get_lines_from_active_force(0, 20);
     let mut first_draw = true;
-
+    
+    
+    let mut old = SystemTime::now();
+    let mut t: u128 = 0;
+    
+    let mut old_display_cursor = false;
+    
+    let mut display_cursor_t_base = 0u128;
+    
     let rasterizer = rasterizer.clone();
     start_loop(events_loop, move |events| {
+        t += get_time_diff(&mut old);
         let mut need_refresh = false;
+        
+        // when something have been refreshed on the screen, that means we need to update the base
+        // t for the cursor, and this way the cursor stay lit when inputting data
+        if manager.is_active_updated() {
+            display_cursor_t_base = t;
+        }
+        
+        let display_cursor = new_cursor_state(t - display_cursor_t_base);
+        need_refresh = need_refresh || (old_display_cursor ^ display_cursor);
+        old_display_cursor = display_cursor;
         
         if first_draw {
             first_draw = false;
@@ -161,7 +180,7 @@ pub fn window(config: Config) {
             )
             .unwrap();
             
-            drawer.render_lines(&lines, cell_size, delta_cell_height, &display, &mut target);
+            drawer.render_lines(&lines, display_cursor, cell_size, delta_cell_height, &display, &mut target);
             
             target.finish().unwrap();
         }
@@ -243,4 +262,18 @@ fn get_display_size(display: &Display) -> RectSize {
 fn check_updated_display_size(display: &Display, old: &RectSize) -> bool {
     let (width, height) = display.get_framebuffer_dimensions();
     old.width != width || old.height != height
+}
+
+fn get_time_diff(old: &mut SystemTime) -> u128 {
+    let now = SystemTime::now();
+    let diff = match now.duration_since(old.clone()) {
+        Ok(duration) => duration.as_millis(),
+        Err(_) => 0
+    };
+    std::mem::replace(old, now);
+    diff
+}
+
+fn new_cursor_state(t: u128) -> bool {
+    (t % 1000) <= 500
 }

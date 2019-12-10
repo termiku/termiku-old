@@ -1,6 +1,7 @@
 use crate::atlas::*;
 use crate::rasterizer::*;
 use crate::config::*;
+use crate::pty_buffer::sgr::SimpleColor;
 
 use glium::{Display, Frame, VertexBuffer, DrawParameters, Surface, index::NoIndices};
 use glium::program::Program;
@@ -141,11 +142,6 @@ impl <'a> Drawer<'a> {
             ..Default::default()
         };
         
-        let cell_size = RectSize {
-            width: 0,
-            height: 0
-        };
-        
         Self {
             config,
             dimensions,
@@ -184,7 +180,7 @@ impl <'a> Drawer<'a> {
         }
     }
     
-    fn get_vertices_for_cell(&self, cell: &DisplayCell, cell_size: RectSize, delta_height: u32, x: u32, y: u32) -> (Option<[BgVertex; 6]>, [CharVertex; 6]) {
+    fn get_vertices_for_cell(&self, cell: &DisplayCell, display_cursor: bool, cell_size: RectSize, delta_height: u32, x: u32, y: u32) -> (Option<[BgVertex; 6]>, [CharVertex; 6]) {
         let actual_x = x as i32;
         let actual_y = y as i32;
         
@@ -233,7 +229,11 @@ impl <'a> Drawer<'a> {
         let tex_bottom_right_x = tex_rect.bottom_right().x as f32 / atlas_width as f32;
         let tex_bottom_right_y = tex_rect.bottom_right().y as f32 / atlas_height as f32 * -1.0;
         
-        let fg_colour = cell.fg_color.to_opengl_color();
+        let fg_colour = if cell.is_cursor && display_cursor {
+            SimpleColor::White.to_color().to_opengl_color()
+        } else {
+            cell.fg_color.to_opengl_color()
+        };
         
         let char_vertices = [
             CharVertex {
@@ -268,11 +268,18 @@ impl <'a> Drawer<'a> {
             }
         ];
         
-        let background_vertices = match cell.bg_color {
+        let bg_colour = if cell.is_cursor && display_cursor {
+            Some(SimpleColor::Black.to_color().to_opengl_color())
+        } else {
+            match cell.bg_color {
+                None => None,
+                Some(colour) => Some(colour.to_opengl_color())
+            }
+        };
+        
+        let background_vertices = match bg_colour {
             None => None,
-            Some(colour) => {
-                let bg_colour = colour.to_opengl_color();
-                Some(
+            Some(bg_colour) => Some(
                     [
                        BgVertex {
                            position: [background_top_left_x, background_top_left_y],
@@ -300,20 +307,19 @@ impl <'a> Drawer<'a> {
                        }
                    ]
                 )
-            }
         };
         
         (background_vertices, char_vertices)
     }
     
-    fn get_vertices_for_line(&self, line: &DisplayCellLine, cell_size: RectSize, delta_height: u32, y: u32) -> (Vec<BgVertex>, Vec<CharVertex>) {
+    fn get_vertices_for_line(&self, line: &DisplayCellLine, display_cursor: bool, cell_size: RectSize, delta_height: u32, y: u32) -> (Vec<BgVertex>, Vec<CharVertex>) {
         let mut x = 0;
         
         let mut bg_vertices: Vec<BgVertex> = Vec::with_capacity(line.cells.len()); 
         let mut char_vertices: Vec<CharVertex> = Vec::with_capacity(line.cells.len());  
         
         for cell in line.cells.iter() {
-            let vertices = self.get_vertices_for_cell(cell, cell_size, delta_height, x, y);
+            let vertices = self.get_vertices_for_cell(cell, display_cursor, cell_size, delta_height, x, y);
             
             if let Some(bg) = &vertices.0 {
                 bg_vertices.extend(bg);
@@ -356,7 +362,7 @@ impl <'a> Drawer<'a> {
              .unwrap();
      }
     
-    pub fn render_lines(&mut self, lines: &[DisplayCellLine],
+    pub fn render_lines(&mut self, lines: &[DisplayCellLine], display_cursor: bool,
         cell_size: RectSize, delta_height: u32, display: &Display, frame: &mut Frame) {
         
         let cell_height = cell_size.height;
@@ -373,7 +379,7 @@ impl <'a> Drawer<'a> {
         let mut char_vertices: Vec<CharVertex> = vec![];
 
         for line in lines_to_render {
-            let mut vertices = self.get_vertices_for_line(line, cell_size, delta_height, current_height);
+            let mut vertices = self.get_vertices_for_line(line, display_cursor, cell_size, delta_height, current_height);
             
             bg_vertices.append(&mut vertices.0);
             char_vertices.append(&mut vertices.1);

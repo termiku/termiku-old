@@ -272,6 +272,11 @@ impl TermManager {
         list.get_active_mut().unwrap().buffer.get_range(start, end)
     }
     
+    pub fn is_active_updated(&self) -> bool {
+        let mut list = self.list.read().unwrap();
+        list.get_active().unwrap().buffer.is_updated()
+    }
+    
     pub fn dimensions_updated(&mut self) {
         let mut list = self.list.write().unwrap();
 
