@@ -166,33 +166,32 @@ impl Screen {
                         
                         30..=37 => self.simple_color_foreground(property as u8 - 30),
                         
-                        38 => {
-                            println!("1");
-                            if length >= 3 {
-                                println!("2");
-                                match parameters[1] {
-                                    // 256 colors
-                                    5 =>  {
-                                        println!("3");
-                                        match parameters[2] {
+                        38 => if length >= 3 {
+                            
+                            match parameters[1] {
+                                // 256 colors
+                                5 =>  {
+                                    match parameters[2] {
                                         0..=15 => {
                                             self.simple_color_foreground(parameters[2] as u8)
                                         },
+                                        
                                         16..=231 => self.cube_color_foreground(parameters[2] as u8 - 16),
+                                        
                                         232..=255 => self.grayscale_color_foreground(parameters[2] as u8 - 232),
+                                        
                                         _ => {}
                                     }
-                                    },
+                                },
+                                
+                                // Truecolor
+                                2 => {
                                     
-                                    // Truecolor
-                                    2 => {
-                                        
-                                    },
-                                    
-                                    _ => {}
-                                }
+                                },
+                                
+                                _ => {}
                             }
-                        }
+                        },
                         
                         39 => self.default_color_foreground(),
                         
