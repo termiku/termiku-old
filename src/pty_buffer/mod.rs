@@ -29,7 +29,7 @@ impl Position {
 
 // R G B A
 // Black is 0,0,0
-// White is 1,1,1
+// White is 255, 255, 255
 #[derive(Copy, Clone, Debug)]
 pub struct Color(pub u8, pub u8, pub u8, pub u8);
 
@@ -40,6 +40,10 @@ impl Color {
         } else {
             byte as f32 / 255.0
         }
+    }
+    
+    pub fn from_rgb(r: u8, g: u8, b: u8) -> Self {
+        Self(r, g, b, 255)
     }
     
     pub fn to_opengl_color(&self) -> [f32; 4] {
@@ -55,7 +59,7 @@ impl Color {
 #[derive(Copy, Clone, Debug)]
 pub struct CellProperties {
     pub fg: Color,
-    pub bg: Color
+    pub bg: Option<Color>
 }
 
 // Should probably need a Config from somewhere
@@ -63,7 +67,7 @@ impl CellProperties {
     pub fn new() -> Self {
         Self {
             fg: Color(0, 0, 0, 255),
-            bg: Color(1, 1, 1, 255)
+            bg: None
         }
     }
 }

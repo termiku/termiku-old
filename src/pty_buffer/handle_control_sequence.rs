@@ -116,9 +116,6 @@ impl Screen {
                 let cursor_x = &mut self.cursor.position.x;
                 let cursor_y = &mut self.cursor.position.y;
                 
-                println!("row: {}, column: {}", row, column);
-                println!("before: cursor x: {}, cursor_y: {}", cursor_x, cursor_y);
-                
                 let row = row as usize;
                 let column = column as usize;
                 
@@ -140,10 +137,7 @@ impl Screen {
                     } else {
                         row
                     }
-                };
-                
-                println!("after: cursor x: {}, cursor_y: {}", cursor_x, cursor_y);
-                
+                };                
             },
             
             // One of the heaviest control sequence, which changes the way characters are now
@@ -166,9 +160,68 @@ impl Screen {
                         
                         30..=37 => self.simple_color_foreground(property as u8 - 30),
                         
+                        38 => if length >= 3 {
+                            
+                            match parameters[1] {
+                                // 256 colors
+                                5 =>  {
+                                    match parameters[2] {
+                                        0..=15 => {
+                                            self.simple_color_foreground(parameters[2] as u8)
+                                        },
+                                        
+                                        16..=231 => self.cube_color_foreground(parameters[2] as u8 - 16),
+                                        
+                                        232..=255 => self.grayscale_color_foreground(parameters[2] as u8 - 232),
+                                        
+                                        _ => {}
+                                    }
+                                },
+                                
+                                // Truecolor
+                                2 => if length >= 5 {
+                                        let r = parameters[2] as u8;
+                                        let g = parameters[3] as u8;
+                                        let b = parameters[4] as u8;
+                                        
+                                        self.true_color_foreground(r, g, b);
+                                },
+                                
+                                _ => {}
+                            }
+                        },
+                        
                         39 => self.default_color_foreground(),
                         
                         40..=47 => self.simple_color_background(property as u8 - 40),
+                        
+                        48 => if length >= 3 {
+                            match parameters[1] {
+                                // 256 colors
+                                5 => match parameters[2] {
+                                    0..=15 => {
+                                        self.simple_color_background(parameters[2] as u8)
+                                    },
+                                    
+                                    16..=231 => self.cube_color_background(parameters[2] as u8 - 16),
+                                    
+                                    232..=255 => self.grayscale_color_background(parameters[2] as u8 - 232),
+                                    
+                                    _ => {}
+                                },
+                                
+                                // Truecolor
+                                2 => if length >= 5 {
+                                        let r = parameters[2] as u8;
+                                        let g = parameters[3] as u8;
+                                        let b = parameters[4] as u8;
+                                        
+                                        self.true_color_background(r, g, b);
+                                },
+                                
+                                _ => {}
+                            }
+                        },
                         
                         49 => self.default_color_background(),
                         
