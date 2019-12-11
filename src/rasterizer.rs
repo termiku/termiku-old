@@ -99,7 +99,7 @@ impl Rasterizer {
     
     pub fn rasterize(&mut self, characters: &[u8]) -> Vec<FreeTypeGlyph> {
         let handle = self.wrapper.0.lock().unwrap();
-        let mut buffer = create_harfbuzz_buffer(characters.len());
+        let buffer = create_harfbuzz_buffer(characters.len());
         let buffer_p = buffer.as_ptr();
         let glyphs = unsafe {
             add_slice_to_buffer(buffer_p, characters);

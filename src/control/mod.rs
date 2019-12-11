@@ -147,11 +147,7 @@ impl ControlSeqenceParser {
     }
     
     pub fn is_parsing(&self) -> bool {
-        if self.state == ParserState::NotParsing {
-            false
-        } else {
-            true
-        }
+        !(self.state == ParserState::NotParsing)
     }
     
     // Parse the buffer raw data, and deleguate its interpretation, returning the result.
@@ -166,7 +162,7 @@ impl ControlSeqenceParser {
         let final_byte: &u8 = &self.buffer[self.buffer.len() - 1];
         
         self.parameters_buffer.clear();
-        let control_type = interpret_control(parameter_bytes, intermediary_bytes, final_byte, &mut self.parameters_buffer);
+        let control_type = interpret_control(parameter_bytes, intermediary_bytes, *final_byte, &mut self.parameters_buffer);
         
     
         self.reset();    

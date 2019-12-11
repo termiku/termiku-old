@@ -1,5 +1,4 @@
 use super::*;
-use super::sgr::*;
 
 use crate::control::control_type::*;
 use ControlType::*;
@@ -29,7 +28,7 @@ impl Screen {
                 let cursor_y = &mut self.cursor.position.y;
                 let value = value as usize;
                 
-                *cursor_y = *cursor_y + value;
+                *cursor_y += value;
                 if *cursor_y > self.line_cell_height {
                     *cursor_y = self.line_cell_height;
                 }
@@ -40,7 +39,7 @@ impl Screen {
                 let cursor_x = &mut self.cursor.position.x;
                 let value = value as usize;
                 
-                *cursor_x = *cursor_x + value;
+                *cursor_x += value;
                 if *cursor_x > self.line_cell_width {
                     *cursor_x = self.line_cell_width;
                 }
@@ -68,7 +67,7 @@ impl Screen {
                 let value = value as usize;
                 
                 *cursor_x = 1;
-                *cursor_y = *cursor_y + value;
+                *cursor_y += value;
                 if *cursor_y > self.line_cell_height {
                     *cursor_y = self.line_cell_height;
                 }
@@ -147,7 +146,7 @@ impl Screen {
             // 
             // Dispatches to functions inside sgr.rs
             SelectGraphicRendition(parameters) => {
-                if parameters.len() == 0 {
+                if parameters.is_empty() {
                     // If length is 0, treats it as a reset
                     self.reset_graphics();
                 } else {                    

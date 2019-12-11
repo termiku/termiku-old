@@ -62,7 +62,7 @@ impl Utf8Parser {
             self.value  = (byte & LEAD_MASK[self.length as usize]) as u32;
 
             // Parsing is Ok, but we don't have a full char yet.
-            return Ok(None)
+            Ok(None)
         } else { // Continue parsing the current sequence
             if !is_utf8_continuation_byte(byte) {
                 // If we get an invalid continuation byte, reset parsing state.
@@ -96,12 +96,12 @@ impl Utf8Parser {
             // We're done
             if self.length == 0 {
                 match char::try_from(self.value) {
-                    Ok(c)  => return Ok(Some(c)),
-                    Err(_) => return Err(InvalidCodePoint(self.value))
+                    Ok(c)  => Ok(Some(c)),
+                    Err(_) => Err(InvalidCodePoint(self.value))
                 }
             } else {
                 // Parsing is Ok, but we don't have a full char yet.
-                return Ok(None)
+                Ok(None)
             }
         }
     }
