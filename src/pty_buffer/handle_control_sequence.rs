@@ -5,6 +5,8 @@ use ControlType::*;
 
 impl Screen {
     pub fn handle_control_sequence(&mut self, control: ControlType) {
+        println!("control sequence received! {:?}", control);
+        
         match control {
         
             // Here begins control sequences related to the cursor position.
@@ -24,7 +26,7 @@ impl Screen {
             },
             
             // Make the cursor go n rows down, stopping at the max number of rows.
-            CursorDown(value) => {
+            CursorDown(value) => {                
                 let cursor_y = &mut self.cursor.position.y;
                 let value = value as usize;
                 
@@ -35,7 +37,7 @@ impl Screen {
             },
             
             // Make the cursor go n rows right, stopping at the max number of columns.
-            CursorRight(value) => {
+            CursorRight(value) => {                
                 let cursor_x = &mut self.cursor.position.x;
                 let value = value as usize;
                 

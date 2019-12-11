@@ -6,6 +6,7 @@ use crate::pty;
 use crate::pty_buffer::PtyBuffer;
 use crate::config::*;
 use crate::rasterizer::*;
+use crate::window_event::*;
 
 use mio::unix::EventedFd;
 use mio::{Events, Poll, PollOpt, Ready, Token};
@@ -123,7 +124,7 @@ pub struct TermManager {
     config: Config,
     factory: TermFactory,
     poll: Arc<Poll>,
-    sender: Sender<char>,
+    sender: Sender<TermikuWindowEvent>,
     list: WrappedTermList,
 }
 
@@ -139,7 +140,7 @@ impl TermManager {
         let mut events = Events::with_capacity(1024);
         
         // Channel used for receiving channel events
-        let (sender, receiver) = channel::<char>();
+        let (sender, receiver) = channel::<TermikuWindowEvent>();
         
         let termlist = Arc::new(RwLock::new(TermList::new()));
         
@@ -175,8 +176,8 @@ impl TermManager {
                     if event.token() == Token(RECEIVER_TOKEN) && event.readiness().is_readable() {
                         let mut handle = cloned_termlist.write().unwrap();
                         
-                        while let Ok(input) = receiver.try_recv() {
-                            handle.write_buffer_to_active_pty(input.encode_utf8(&mut char_buffer).as_bytes());
+                        while let Ok(event) = receiver.try_recv() {
+                            handle_window_event(event, &mut handle, &mut char_buffer);
                         }
                     // This is input from the shell who started Termiku. We redirect to the active term
                     // We're leaving this to control the spawned process,
@@ -200,7 +201,7 @@ impl TermManager {
                             let mut input: Vec<u8> = Vec::with_capacity(32);
                             
                             while let Ok(amount) = term.pty.pty.read(&mut buffer) {
-                                print!("{}", String::from_utf8_lossy(&buffer[0..amount]));
+                                // println!("{}", String::from_utf8_lossy(&buffer[0..amount]));
                                 io::stdout().flush().unwrap();
                                 input.extend(&buffer[0..amount]);
                             }
@@ -250,8 +251,8 @@ impl TermManager {
         }
     }
     
-    pub fn send_input(&mut self, input: char) {
-        self.sender.send(input).unwrap();
+    pub fn send_event(&mut self, event: TermikuWindowEvent) {
+        self.sender.send(event).unwrap();
     }
     
     pub fn get_lines_from_active(&mut self, start: usize, end: usize) -> Option<Vec<DisplayCellLine>> {
@@ -325,6 +326,15 @@ impl TermFactory {
 
         self.count += 1;
         term
+    }
+}
+
+fn handle_window_event(event: TermikuWindowEvent, termlist: &mut TermList, char_buffer: &mut [u8]) {
+    use TermikuWindowEvent::*;
+    
+    match event {
+        CharacterInput(character) => termlist.write_buffer_to_active_pty(character.encode_utf8(char_buffer).as_bytes()),
+        KeyboardArrow(arrow) => termlist.write_buffer_to_active_pty(arrow.to_control_sequence().as_bytes()),
     }
 }
 
