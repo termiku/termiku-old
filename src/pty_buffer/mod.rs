@@ -10,15 +10,19 @@ use std::collections::VecDeque;
 
 const BELL_BYTE: u8 = 0x07;
 const BACKSPACE_BYTE: u8 = 0x08;
+const TABULATION_BYTE: u8 = 0x09;
 const LINE_FEED_BYTE: u8 = 0x0A;
 const CARRIAGE_RETURN_BYTE: u8 = 0x0D;
 
 fn is_special_byte(byte: u8) -> bool {
     byte == BELL_BYTE ||
     byte == BACKSPACE_BYTE ||
+    byte == TABULATION_BYTE ||
     byte == LINE_FEED_BYTE ||
     byte == CARRIAGE_RETURN_BYTE
 }
+
+const TAB_LENGTH: usize = 8;
 
 // Cursor positions
 // They are 1 based
@@ -321,6 +325,18 @@ impl Screen {
                 if column_number != 0 {
                     self.cursor.position.x -= 1;
                 }
+            },
+            
+            TABULATION_BYTE => {
+                let (_, column_number) = self.get_position_pointed_by_cursor();
+                
+                let mut new_column = (column_number / TAB_LENGTH) * TAB_LENGTH + TAB_LENGTH;
+                
+                if new_column >= self.line_cell_width {
+                    new_column = self.line_cell_width - 1;
+                }
+                
+                self.cursor.position.x = new_column;
             },
             
             CARRIAGE_RETURN_BYTE => {
