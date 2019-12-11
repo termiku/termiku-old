@@ -86,5 +86,5 @@ pub enum ControlType {
     /// Ps = 0
     /// 
     /// 0 is the parameters buffer, 1 is the actual length of data inside 
-    SelectGraphicRendition([u16; 5], u8)
+    SelectGraphicRendition(Vec<u16>)
 }

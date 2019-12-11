@@ -110,27 +110,22 @@ pub fn interpret_control(
             if intermediary_bytes.len() == 0 {
                 parse_parameters(parameter_bytes, parameters_buffer);
                 
-                let mut parameters = [0u16; 5];
-                
-                let mut length = 0u8;
-                for index in 0..parameters_buffer.len() {
-                    if index > 4 {
-                        break
-                    }
-                    
-                    parameters[index] = match parameters_buffer.get(index) {
-                        Some(maybe_data) => {
-                            length += 1;
-                            match maybe_data {
-                                Some(data) => *data,
-                                None => 0u16
-                            }
-                        },
-                        None => break,
-                    };
+                let mut parameters = Vec::<u16>::with_capacity(8);
+
+                for index in 0..parameters_buffer.len() {                    
+                    parameters.push(
+                        match parameters_buffer.get(index) {
+                            Some(maybe_data) => {
+                                match maybe_data {
+                                    Some(data) => *data,
+                                    None => 0u16
+                                }
+                            },
+                            None => break,
+                    });
                 }
                 
-                SelectGraphicRendition(parameters, length)
+                SelectGraphicRendition(parameters)
             } else {
                 Unknown
             }

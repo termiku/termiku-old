@@ -146,94 +146,125 @@ impl Screen {
             // https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_parameters
             // 
             // Dispatches to functions inside sgr.rs
-            SelectGraphicRendition(parameters, length) => {
-                if length == 0 {
+            SelectGraphicRendition(parameters) => {
+                if parameters.len() == 0 {
                     // If length is 0, treats it as a reset
                     self.reset_graphics();
-                } else {
-                    // We will now have to determine what kind of graphic properties is selected
-                    let property = parameters[0];
+                } else {                    
+                    let mut index = 0usize;
                     
-                    match property {
-                        0 => self.reset_graphics(),
+                    loop {
+                        if index >= parameters.len() {
+                            break
+                        }
                         
-                        
-                        30..=37 => self.simple_color_foreground(property as u8 - 30),
-                        
-                        38 => if length >= 3 {
-                            
-                            match parameters[1] {
-                                // 256 colors
-                                5 =>  {
-                                    match parameters[2] {
-                                        0..=15 => {
-                                            self.simple_color_foreground(parameters[2] as u8)
-                                        },
-                                        
-                                        16..=231 => self.cube_color_foreground(parameters[2] as u8 - 16),
-                                        
-                                        232..=255 => self.grayscale_color_foreground(parameters[2] as u8 - 232),
-                                        
-                                        _ => {}
-                                    }
-                                },
-                                
-                                // Truecolor
-                                2 => if length >= 5 {
-                                        let r = parameters[2] as u8;
-                                        let g = parameters[3] as u8;
-                                        let b = parameters[4] as u8;
-                                        
-                                        self.true_color_foreground(r, g, b);
-                                },
-                                
-                                _ => {}
-                            }
-                        },
-                        
-                        39 => self.default_color_foreground(),
-                        
-                        40..=47 => self.simple_color_background(property as u8 - 40),
-                        
-                        48 => if length >= 3 {
-                            match parameters[1] {
-                                // 256 colors
-                                5 => match parameters[2] {
-                                    0..=15 => {
-                                        self.simple_color_background(parameters[2] as u8)
-                                    },
-                                    
-                                    16..=231 => self.cube_color_background(parameters[2] as u8 - 16),
-                                    
-                                    232..=255 => self.grayscale_color_background(parameters[2] as u8 - 232),
-                                    
-                                    _ => {}
-                                },
-                                
-                                // Truecolor
-                                2 => if length >= 5 {
-                                        let r = parameters[2] as u8;
-                                        let g = parameters[3] as u8;
-                                        let b = parameters[4] as u8;
-                                        
-                                        self.true_color_background(r, g, b);
-                                },
-                                
-                                _ => {}
-                            }
-                        },
-                        
-                        49 => self.default_color_background(),
-                        
-                        90..=97 => self.simple_color_foreground(property as u8 - 90 + 8),
-                        100..=107 => self.simple_color_background(property as u8 - 100 + 8),
-                        
-                        _ => {}
-                    } 
+                        index = self.exec_sgr_property(&parameters, index);
+                    }
+                    
+                    
                 }
             },
             
             _ => {}
         }
+    }
+    
+    fn exec_sgr_property(&mut self, parameters: &[u16], index: usize) -> usize {
+        let property = parameters[index];
+        
+        let mut index = index;
+        
+        match property {
+            0 => self.reset_graphics(),
+            
+            
+            30..=37 => self.simple_color_foreground(property as u8 - 30),
+            
+            38 => if parameters.len() >= index + 3 {
+                
+                match parameters[index + 1] {
+                    // 256 colors
+                    5 =>  {
+                        index += 2;
+                        
+                        match parameters[index] {
+                            0..=15 => {
+                                self.simple_color_foreground(parameters[index] as u8)
+                            },
+                            
+                            16..=231 => self.cube_color_foreground(parameters[index] as u8 - 16),
+                            
+                            232..=255 => self.grayscale_color_foreground(parameters[index] as u8 - 232),
+                            
+                            _ => {}
+                        }
+                    },
+                    
+                    // Truecolor
+                    2 => if parameters.len() >= index + 5 {
+                            let r = parameters[index + 2] as u8;
+                            let g = parameters[index + 3] as u8;
+                            let b = parameters[index + 4] as u8;
+                            
+                            index += 4;
+                            
+                            self.true_color_foreground(r, g, b);
+                    },
+                    
+                    _ => {}
+                }
+            },
+            
+            39 => self.default_color_foreground(),
+            
+            40..=47 => self.simple_color_background(property as u8 - 40),
+            
+            48 => if parameters.len() >= index + 3 {
+                
+                match parameters[index + 1] {
+                    
+                    // 256 colors
+                    5 => {
+                        index += 2;
+                        match parameters[index] {
+                            
+                            0..=15 => {
+                                self.simple_color_background(parameters[index] as u8)
+                            },
+                            
+                            16..=231 => self.cube_color_background(parameters[index] as u8 - 16),
+                            
+                            232..=255 => self.grayscale_color_background(parameters[index] as u8 - 232),
+                            
+                            _ => {}
+                        }
+                    },
+                    
+                    // Truecolor
+                    2 => if parameters.len() >= index + 5 {
+                            let r = parameters[index + 2] as u8;
+                            let g = parameters[index + 3] as u8;
+                            let b = parameters[index + 4] as u8;
+                            
+                            index += 4;
+                            
+                            self.true_color_background(r, g, b);
+                    },
+                    
+                    _ => {}
+                }
+            },
+            
+            49 => self.default_color_background(),
+            
+            90..=97 => self.simple_color_foreground(property as u8 - 90 + 8),
+            100..=107 => self.simple_color_background(property as u8 - 100 + 8),
+            
+            _ => {}
+        };
+        
+        index += 1;
+        
+        index
     }
 }
