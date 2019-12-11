@@ -28,19 +28,20 @@ pub fn window(config: Config) {
     
     let display = glium::Display::new(window_builder, context_builder, &events_loop).unwrap();
     
-    let image = image::load(
-        Cursor::new(&include_bytes!("../images/miku.jpg")[..]),
-        image::JPEG,
-    )
-    .unwrap()
-    .to_rgba();
+    // let image = image::load(
+    //     Cursor::new(&include_bytes!("../images/miku.jpg")[..]),
+    //     image::JPEG,
+    // )
+    // .unwrap()
+    // .to_rgba();
 
-    let dimensions = image.dimensions();
-    let glium_image =
-        glium::texture::RawImage2d::from_raw_rgba_reversed(&image.into_raw(), dimensions);
+    // let dimensions = image.dimensions();
+    // let glium_image =
+    //     glium::texture::RawImage2d::from_raw_rgba_reversed(&image.into_raw(), dimensions);
 
-    let opengl_texture =
-        glium::texture::CompressedSrgbTexture2d::new(&display, glium_image).unwrap();
+    // let opengl_texture =
+    //     glium::texture::CompressedSrgbTexture2d::new(&display, glium_image).unwrap();
+
     let vertex_buffer = {
         #[derive(Copy, Clone)]
         struct Vertex {
@@ -157,15 +158,15 @@ pub fn window(config: Config) {
         }
         
         if need_refresh {
-            let uniforms = uniform! {
-                matrix: [
-                    [1.0, 0.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0, 0.0],
-                    [0.0, 0.0, 1.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0f32]
-                ],
-                tex: &opengl_texture
-            };
+            // let uniforms = uniform! {
+            //     matrix: [
+            //         [1.0, 0.0, 0.0, 0.0],
+            //         [0.0, 1.0, 0.0, 0.0],
+            //         [0.0, 0.0, 1.0, 0.0],
+            //         [0.0, 0.0, 0.0, 1.0f32]
+            //     ],
+            //     tex: &opengl_texture
+            // };
             
             // drawing a frame
             let mut target = display.draw();
