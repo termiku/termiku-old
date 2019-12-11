@@ -106,7 +106,7 @@ impl Rasterizer {
             harfbuzz_shape(handle.font.as_ptr(), buffer_p);
             get_buffer_glyph(buffer_p)
         };
-        render_glyphs(handle.face, &glyphs).unwrap()
+        render_glyphs(handle.lib, handle.face, &glyphs).unwrap()
     }
     
     // update the dimensions of the drawer.

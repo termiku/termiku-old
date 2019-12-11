@@ -1,6 +1,7 @@
 use crate::atlas::*;
 use crate::rasterizer::*;
 use crate::config::*;
+use crate::pty_buffer::*;
 use crate::pty_buffer::sgr::SimpleColor;
 
 use glium::{Display, Frame, VertexBuffer, DrawParameters, Surface, index::NoIndices};
@@ -269,7 +270,7 @@ impl <'a> Drawer<'a> {
         ];
         
         let bg_colour = if cell.is_cursor && display_cursor {
-            Some(SimpleColor::Black.to_color().to_opengl_color())
+            Some(DEFAULT_FG.to_opengl_color())
         } else {
             match cell.bg_color {
                 None => None,

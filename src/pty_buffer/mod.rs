@@ -33,6 +33,8 @@ impl Position {
 #[derive(Copy, Clone, Debug)]
 pub struct Color(pub u8, pub u8, pub u8, pub u8);
 
+pub const DEFAULT_FG: Color = Color(255, 255, 255, 255);
+
 impl Color {
     pub fn u8_to_f32(byte: u8) -> f32 {
         if byte == 0 {
@@ -66,7 +68,7 @@ pub struct CellProperties {
 impl CellProperties {
     pub fn new() -> Self {
         Self {
-            fg: Color(0, 0, 0, 255),
+            fg: DEFAULT_FG,
             bg: None
         }
     }
