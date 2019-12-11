@@ -3,6 +3,24 @@ use std::ffi::CString;
 
 use crate::atlas::RectSize;
 
+#[link(name = "freetype")]
+extern {
+    fn FT_Bitmap_Init(bitmap: *mut FT_Bitmap);
+    fn FT_Bitmap_Copy(
+        library: FT_Library,
+        source: *const FT_Bitmap,
+        destination: *mut FT_Bitmap,
+    ) -> FT_Error;
+    fn FT_Bitmap_Convert(
+        library: FT_Library,
+        source: *const FT_Bitmap,
+        destination: *mut FT_Bitmap,
+        alignment: FT_Int,
+    ) -> FT_Error;
+}
+
+
+
 type FTResult<T> = Result<T, FT_Error>;
 
 pub fn init_freetype() -> FTResult<FT_Library> {
@@ -59,7 +77,7 @@ pub fn set_char_size(face: FT_Face, size: i64) -> FTResult<()> {
     }
 }
 
-pub fn render_glyph(face: FT_Face, glyph_index: u32) -> FTResult<FreeTypeGlyph> {
+pub fn render_glyph(lib: FT_Library, face: FT_Face, glyph_index: u32) -> FTResult<FreeTypeGlyph> {
     let error = unsafe {
         FT_Load_Glyph(
             face,
@@ -85,15 +103,27 @@ pub fn render_glyph(face: FT_Face, glyph_index: u32) -> FTResult<FreeTypeGlyph> 
         return Err(error);
     }
     
+    // There's propably a memory leak somewhere
+    
+    // let mut uninit_bitmap = std::mem::MaybeUninit::<FT_Bitmap_>::uninit();
+    // let bitmap_p = uninit_bitmap.as_mut_ptr();
+    // let mut new_bitmap: FT_Bitmap = unsafe {
+    //     FT_Bitmap_Init(bitmap_p);
+    //     uninit_bitmap.assume_init()
+    // };
+
     let glyph = unsafe {
         let glyph = *(*face).glyph;
-        let bitmap = glyph.bitmap;
+        
         let metrics = glyph.metrics;
+        
+        let bitmap = glyph.bitmap;
         let buffer = std::slice::from_raw_parts(
             bitmap.buffer,
             (bitmap.pitch.abs() as u32 * bitmap.rows) as usize
         ).to_owned();
 
+            
         FreeTypeGlyph {
             id: glyph_index,
             buffer,
@@ -111,11 +141,11 @@ pub fn render_glyph(face: FT_Face, glyph_index: u32) -> FTResult<FreeTypeGlyph> 
     Ok(glyph)
 }
 
-pub fn render_glyphs(face: FT_Face, glyphs: &[u32]) -> FTResult<Vec<FreeTypeGlyph>> {
+pub fn render_glyphs(lib: FT_Library, face: FT_Face, glyphs: &[u32]) -> FTResult<Vec<FreeTypeGlyph>> {
     let mut results: Vec<FreeTypeGlyph> = vec![];
     
     for &glyph in glyphs.iter() {
-        let result = render_glyph(face, glyph)?;
+        let result = render_glyph(lib, face, glyph)?;
         results.push(result);
     }
     

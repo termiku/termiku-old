@@ -22,7 +22,8 @@ pub fn window(config: Config) {
     let events_loop = EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new()
         .with_inner_size(glutin::dpi::LogicalSize::new(1280.0, 720.0))
-        .with_title("mou ikkai");
+        .with_title("mou ikkai")
+        .with_transparent(true);
     let context_builder = glutin::ContextBuilder::new();
     
     let display = glium::Display::new(window_builder, context_builder, &events_loop).unwrap();
@@ -169,16 +170,16 @@ pub fn window(config: Config) {
             // drawing a frame
             let mut target = display.draw();
             
-            target.clear_color(0.0, 0.0, 0.0, 0.0);
-            target
-            .draw(
-                &vertex_buffer,
-                &index_buffer,
-                &program,
-                &uniforms,
-                &Default::default(),
-            )
-            .unwrap();
+            target.clear_color(0.0, 0.0, 0.0, 0.5);
+            // target
+            // .draw(
+            //     &vertex_buffer,
+            //     &index_buffer,
+            //     &program,
+            //     &uniforms,
+            //     &Default::default(),
+            // )
+            // .unwrap();
             
             drawer.render_lines(&lines, display_cursor, cell_size, delta_cell_height, &display, &mut target);
             
