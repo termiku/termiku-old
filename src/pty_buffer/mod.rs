@@ -8,6 +8,17 @@ use crate::control::*;
 
 use std::collections::VecDeque;
 
+const BELL_BYTE: u8 = 0x07;
+const BACKSPACE_BYTE: u8 = 0x08;
+const LINE_FEED_BYTE: u8 = 0x0A;
+const CARRIAGE_RETURN_BYTE: u8 = 0x0D;
+
+fn is_special_byte(byte: u8) -> bool {
+    byte == BELL_BYTE ||
+    byte == BACKSPACE_BYTE ||
+    byte == LINE_FEED_BYTE ||
+    byte == CARRIAGE_RETURN_BYTE
+}
 
 // Cursor positions
 // They are 1 based
@@ -272,12 +283,7 @@ impl Screen {
         }
     }
 
-    
-    // incorrect. Should only go down one line, not go back at the beginning, but whatever for now,
-    // im done
     pub fn next_line(&mut self) {
-        self.cursor.position.x = 1;
-        
         if self.cursor.position.y == self.line_cell_height {
             self.push_line_to_history();
         } else {
@@ -299,34 +305,68 @@ impl Screen {
         (row_number, column_number)
     }
     
+    fn handle_special_byte(&mut self, byte: u8, rasterizer: &mut Rasterizer) {
+        match byte {
+            
+            BELL_BYTE => {
+                // Do nothing for now
+            },
+            
+            BACKSPACE_BYTE => {
+                let (row_number, column_number) = self.get_position_pointed_by_cursor();
+                
+                self.screen_lines[row_number].cells[column_number].state = CellState::Empty;
+                self.screen_lines[row_number].rasterize(rasterizer);
+                
+                if column_number != 0 {
+                    self.cursor.position.x -= 1;
+                }
+            },
+            
+            CARRIAGE_RETURN_BYTE => {
+                self.cursor.position.x = 1;
+            }
+            
+            // Should never reach a line feed for now (handled upper in the stack), so i want to
+            // crash if we somehow do encouter it.
+            _ => unreachable!()
+        }
+    }
+    
     fn push_byte_to_screen(&mut self, byte: u8, rasterizer: &mut Rasterizer) {
-        let (mut row_number, mut column_number) = self.get_position_pointed_by_cursor();
-        
-        let cell_state = self.screen_lines[row_number].cells[column_number].state.next_state(byte);
-        
-        let advance = match cell_state {
-            CellState::Filled(_) | CellState::Invalid => true,
-            _ => false
-        };
-        
-        self.screen_lines[row_number].cells[column_number].state = cell_state;
-        self.screen_lines[row_number].cells[column_number].properties = self.cursor.properties;
-        
-        self.screen_lines[row_number].rasterize(rasterizer);
-        
-        if advance {
-            column_number += 1;
-            if column_number >= self.line_cell_width {
-                row_number += 1;
-                column_number = 0;
-                if row_number >= self.line_cell_height {
-                    self.push_line_to_history();
+        // Handle special bytes, like the bell or a backspace, and do not draw anything on screen
+        if is_special_byte(byte) {
+            self.handle_special_byte(byte, rasterizer);
+        } else {
+            let (mut row_number, mut column_number) = self.get_position_pointed_by_cursor();
+            
+            let cell_state = self.screen_lines[row_number].cells[column_number].state.next_state(byte);
+            
+            let advance = match cell_state {
+                CellState::Filled(_) | CellState::Invalid => true,
+                _ => false
+            };
+            
+            self.screen_lines[row_number].cells[column_number].state = cell_state;
+            self.screen_lines[row_number].cells[column_number].properties = self.cursor.properties;
+            
+            self.screen_lines[row_number].rasterize(rasterizer);
+            
+            if advance {
+                column_number += 1;
+                if column_number >= self.line_cell_width {
+                    row_number += 1;
+                    column_number = 0;
+                    if row_number >= self.line_cell_height {
+                        self.push_line_to_history();
+                    }
                 }
             }
+            
+            self.cursor.position.x = column_number + 1;
+            self.cursor.position.y = row_number + 1;
         }
         
-        self.cursor.position.x = column_number + 1;
-        self.cursor.position.y = row_number + 1;
     }
     
     fn push_line_to_history(&mut self) {
@@ -356,7 +396,7 @@ impl PtyBuffer {
     pub fn add_input(&mut self, input: Vec<u8>) {
         self.updated = true;
         
-        let mut lines = input.split(|x| x == &10).peekable();
+        let mut lines = input.split(|x| x == &LINE_FEED_BYTE).peekable();
         
         loop {
             let next = lines.next();
