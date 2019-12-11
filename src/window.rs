@@ -104,6 +104,8 @@ pub fn window(config: Config) {
     })
     .unwrap();
 
+    let display_background = false;
+
     let mut drawer = Drawer::new(&display, config.clone());
     let rasterizer = Arc::new(RwLock::new(Rasterizer::new(config.clone(), get_display_size(&display))));
     let cell_size = rasterizer.read().unwrap().cell_size;
@@ -142,7 +144,7 @@ pub fn window(config: Config) {
             need_refresh = true;
         }
         
-        if check_updated_display_size(&display, &dimensions) {
+        if check_updated_display_size(&display, dimensions) {
             need_refresh = true;
             dimensions = get_display_size(&display);
             drawer.update_dimensions(&display);
@@ -171,15 +173,18 @@ pub fn window(config: Config) {
             let mut target = display.draw();
             
             target.clear_color(0.0, 0.0, 0.0, 0.5);
-            // target
-            // .draw(
-            //     &vertex_buffer,
-            //     &index_buffer,
-            //     &program,
-            //     &uniforms,
-            //     &Default::default(),
-            // )
-            // .unwrap();
+            
+            if display_background {
+                target
+                .draw(
+                    &vertex_buffer,
+                    &index_buffer,
+                    &program,
+                    &uniforms,
+                    &Default::default(),
+                )
+                .unwrap();
+            }
             
             drawer.render_lines(&lines, display_cursor, cell_size, delta_cell_height, &display, &mut target);
             
@@ -189,15 +194,14 @@ pub fn window(config: Config) {
 
         let mut action = Action::Continue;
         for event in events {
-            match event {
-                Event::WindowEvent { event, .. } => match event {
+            if let Event::WindowEvent { event, .. } = event {
+                match event {
                     WindowEvent::CloseRequested => action = Action::Stop,
                     WindowEvent::ReceivedCharacter(input) => {
                         manager.send_input(*input)
                     }
                     _ => (),
-                },
-                _ => (),
+                };
             }
         }
 
@@ -260,7 +264,7 @@ fn get_display_size(display: &Display) -> RectSize {
     }
 }
 
-fn check_updated_display_size(display: &Display, old: &RectSize) -> bool {
+fn check_updated_display_size(display: &Display, old: RectSize) -> bool {
     let (width, height) = display.get_framebuffer_dimensions();
     old.width != width || old.height != height
 }

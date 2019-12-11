@@ -36,6 +36,12 @@ pub fn create_harfbuzz_buffer(capacity: usize) -> Buffer {
     buffer
 }
 
+/// # Safety
+/// The buffer pointer needs to point to a valid Harfbuzz buffer.
+/// This buffer *will* be modified, so it needs not to be accessed by other threads before calling
+/// this function.
+/// 
+/// The slice data can be non valid UTF-8 (but it's not recommended)
 pub unsafe fn add_slice_to_buffer(buffer: *mut hb_buffer_t, data: &[u8]) {
     hb_buffer_add_utf8(
         buffer,
@@ -46,10 +52,16 @@ pub unsafe fn add_slice_to_buffer(buffer: *mut hb_buffer_t, data: &[u8]) {
     );
 }
 
+/// # Safety
+/// Both pointers must point to their valid respective structs.
+/// This buffer *will* be modified, so it needs not to be accessed by other threads before calling
+/// this function.
 pub unsafe fn harfbuzz_shape(font: *mut hb_font_t, buffer: *mut hb_buffer_t) {
     hb_shape(font, buffer, std::ptr::null(), 0);
 }
 
+/// # Safety
+/// Both pointers must point to their valid respective structs.
 pub unsafe fn print_harfbuzz_buffer_info(font: *mut hb_font_t, buffer: *mut hb_buffer_t) {
     let buffer_length: u32 = hb_buffer_get_length(buffer);
     let glyph_infos_p = hb_buffer_get_glyph_infos(buffer, std::ptr::null_mut());
@@ -66,6 +78,8 @@ pub unsafe fn print_harfbuzz_buffer_info(font: *mut hb_font_t, buffer: *mut hb_b
     }
 }
 
+/// # Safety
+/// The buffer pointer needs to point to a valid Harfbuzz buffer.
 pub unsafe fn get_buffer_glyph(buffer: *mut hb_buffer_t) -> Vec<u32> {
     let buffer_length: u32 = hb_buffer_get_length(buffer);
     let glyph_infos_p = hb_buffer_get_glyph_infos(buffer, std::ptr::null_mut());

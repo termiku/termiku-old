@@ -198,7 +198,7 @@ pub struct PtyWithProcess {
     pub process: Child,
 }
 
-pub fn spawn_process (program: &str, args: &[String], env: &Option<HashMap<String, String>>) -> io::Result<PtyWithProcess> {
+pub fn spawn_process <H> (program: &str, args: &[String], env: &Option<HashMap<String, String, H>>) -> io::Result<PtyWithProcess> {
     let pty = Pty::open()?;
     let fds = pty.as_raw_fds();
 
@@ -269,7 +269,7 @@ impl Evented for PtyWithProcess {
     }
 }
 
-fn set_envs(command: &mut Command, env: &Option<HashMap<String, String>>) {
+fn set_envs <H> (command: &mut Command, env: &Option<HashMap<String, String, H>>) {
     if let Some(envs) = env {
         command.envs(envs);
     }

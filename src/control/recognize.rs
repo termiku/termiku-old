@@ -3,14 +3,14 @@ use super::*;
 // Interpret a control sequence, given all of its raw data.
 // Also need a paramater buffer, which get reused to reduce dynamic allocations.
 pub fn interpret_control(
-    parameter_bytes: &[u8], intermediary_bytes: &[u8], final_byte: &u8, parameters_buffer: &mut Vec<Option<u16>>
+    parameter_bytes: &[u8], intermediary_bytes: &[u8], final_byte: u8, parameters_buffer: &mut Vec<Option<u16>>
 ) -> ControlType {
     use ControlType::*;
     
     match final_byte {
         0x41 => {
             // CUU
-            if intermediary_bytes.len() == 0 {
+            if intermediary_bytes.is_empty() {
                 parse_parameters(parameter_bytes, parameters_buffer);
                 
                 let value = get_parameter_default(parameters_buffer, 0, 1);
@@ -22,7 +22,7 @@ pub fn interpret_control(
         },
         0x42 => {
             // CUD
-            if intermediary_bytes.len() == 0 {
+            if intermediary_bytes.is_empty() {
                 parse_parameters(parameter_bytes, parameters_buffer);
                 
                 let value = get_parameter_default(parameters_buffer, 0, 1);
@@ -34,7 +34,7 @@ pub fn interpret_control(
         },
         0x43 => {
             // CUF
-            if intermediary_bytes.len() == 0 {
+            if intermediary_bytes.is_empty() {
                 parse_parameters(parameter_bytes, parameters_buffer);
                 
                 let value = get_parameter_default(parameters_buffer, 0, 1);
@@ -46,7 +46,7 @@ pub fn interpret_control(
         },
         0x44 => {
             // CUB
-            if intermediary_bytes.len() == 0 {
+            if intermediary_bytes.is_empty() {
                 parse_parameters(parameter_bytes, parameters_buffer);
                 
                 let value = get_parameter_default(parameters_buffer, 0, 1);
@@ -58,7 +58,7 @@ pub fn interpret_control(
         },
         0x45 => {
             // CNL
-            if intermediary_bytes.len() == 0 {
+            if intermediary_bytes.is_empty(){
                 parse_parameters(parameter_bytes, parameters_buffer);
                 
                 let value = get_parameter_default(parameters_buffer, 0, 1);
@@ -70,7 +70,7 @@ pub fn interpret_control(
         },
         0x46 => {
             // CPL
-            if intermediary_bytes.len() == 0 {
+            if intermediary_bytes.is_empty() {
                 parse_parameters(parameter_bytes, parameters_buffer);
                 
                 let value = get_parameter_default(parameters_buffer, 0, 1);
@@ -82,7 +82,7 @@ pub fn interpret_control(
         },
         0x47 => {
             // CHA
-            if intermediary_bytes.len() == 0 {
+            if intermediary_bytes.is_empty() {
                 parse_parameters(parameter_bytes, parameters_buffer);
                 
                 let value = get_parameter_default(parameters_buffer, 0, 1);
@@ -94,7 +94,7 @@ pub fn interpret_control(
         },
         0x48 => {
             // CUP
-            if intermediary_bytes.len() == 0 {
+            if intermediary_bytes.is_empty() {
                 parse_parameters(parameter_bytes, parameters_buffer);
                 
                 let value_1 = get_parameter_default(parameters_buffer, 0, 1);
@@ -107,7 +107,7 @@ pub fn interpret_control(
         },
         0x6D => {
             // SGR
-            if intermediary_bytes.len() == 0 {
+            if intermediary_bytes.is_empty() {
                 parse_parameters(parameter_bytes, parameters_buffer);
                 
                 let mut parameters = Vec::<u16>::with_capacity(8);
@@ -149,13 +149,11 @@ const NUMBER_RANGE: std::ops::RangeInclusive<u8> = 0x30..=0x39;
 fn parse_parameters(parameter_bytes: &[u8], buffer: &mut Vec<Option<u16>>) {
     let mut current_value = None;
     
-    if parameter_bytes.len() == 0 {
+    if parameter_bytes.is_empty() {
         return;
     }
     
-    for index in 0..parameter_bytes.len() {
-        let byte = parameter_bytes[index];
-        
+    for &byte in parameter_bytes {        
         // `0x3A` is ':', `0x3B` is ';'
         if byte == 0x3A || byte == 0x3B {
             buffer.push(current_value);
@@ -174,14 +172,14 @@ fn parse_parameters(parameter_bytes: &[u8], buffer: &mut Vec<Option<u16>>) {
     buffer.push(current_value);
 }
 
-fn get_parameter(buffer: &Vec<Option<u16>>, index: usize) -> Option<u16> {
+fn get_parameter(buffer: &[Option<u16>], index: usize) -> Option<u16> {
     match buffer.get(index) {
         Some(value) => *value,
         None => None
     }
 }
 
-fn get_parameter_default(buffer: &Vec<Option<u16>>, index: usize, default: u16) -> u16 {
+fn get_parameter_default(buffer: &[Option<u16>], index: usize, default: u16) -> u16 {
     match get_parameter(buffer, index) {
         Some(value) => value,
         None => default

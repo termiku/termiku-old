@@ -273,7 +273,7 @@ impl TermManager {
     }
     
     pub fn is_active_updated(&self) -> bool {
-        let mut list = self.list.read().unwrap();
+        let list = self.list.read().unwrap();
         list.get_active().unwrap().buffer.is_updated()
     }
     

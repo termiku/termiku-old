@@ -63,7 +63,7 @@ impl Color {
         Self(r, g, b, 255)
     }
     
-    pub fn to_opengl_color(&self) -> [f32; 4] {
+    pub fn to_opengl_color(self) -> [f32; 4] {
         [
             Self::u8_to_f32(self.0),
             Self::u8_to_f32(self.1),
@@ -115,7 +115,7 @@ impl Cursor {
     
     pub fn restore(&mut self) {
         if let Some(position) = &self.saved {
-            self.position = position.clone();
+            self.position = *position;
         }
     }
 }
@@ -252,7 +252,7 @@ impl Screen {
         }
     }
     
-    pub fn update_line_cell_dimensions(&mut self, line_cell_size: RectSize) {
+    pub fn update_line_cell_dimensions(&mut self, _line_cell_size: RectSize) {
         // self.line_cell_height = line_cell_size.height as usize;
         // self.line_cell_width = line_cell_size.width as usize;
     }
@@ -269,7 +269,8 @@ impl Screen {
                     Err(_) => {
                         let mut buffer = self.control_parser.reset();
                         if *byte == CSI_1 {
-                            self.control_parser.parse_byte(*byte);
+                            self.control_parser.parse_byte(*byte)
+                                .expect("Can't parse a CSI after being reseted");
                         } else {
                             buffer.push(*byte);
                         }
@@ -280,7 +281,8 @@ impl Screen {
                     }
                 }
             } else if *byte == CSI_1 {
-                self.control_parser.parse_byte(*byte);
+                self.control_parser.parse_byte(*byte)
+                    .expect("Can't parse a CSI after being reseted");
             } else {
                 self.push_byte_to_screen(*byte, rasterizer);
             }

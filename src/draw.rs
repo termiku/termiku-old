@@ -370,7 +370,7 @@ impl <'a> Drawer<'a> {
         
         let number_of_lines = (self.dimensions.height / cell_size.height) as usize;
         
-        let lines_to_render: Vec<&DisplayCellLine> = lines.into_iter().take(number_of_lines).rev().collect();
+        let lines_to_render: Vec<&DisplayCellLine> = lines.iter().take(number_of_lines).rev().collect();
         
         self.prepare_atlas(&lines_to_render);
         

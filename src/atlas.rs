@@ -133,7 +133,7 @@ impl Atlas {
             }
         }
 
-        return None;
+        None
     }
     
     fn write_to_texture(&mut self, rect: Rect, data: &[u8]) {

@@ -77,7 +77,7 @@ pub fn set_char_size(face: FT_Face, size: i64) -> FTResult<()> {
     }
 }
 
-pub fn render_glyph(lib: FT_Library, face: FT_Face, glyph_index: u32) -> FTResult<FreeTypeGlyph> {
+pub fn render_glyph(_lib: FT_Library, face: FT_Face, glyph_index: u32) -> FTResult<FreeTypeGlyph> {
     let error = unsafe {
         FT_Load_Glyph(
             face,
