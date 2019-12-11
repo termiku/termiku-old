@@ -17,7 +17,7 @@ pub fn interpret_control(
                 
                 CursorUp(value)
             } else {
-                Unknown
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
             }
         },
         0x42 => {
@@ -29,7 +29,7 @@ pub fn interpret_control(
                 
                 CursorDown(value)
             } else {
-                Unknown
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
             }
         },
         0x43 => {
@@ -41,7 +41,7 @@ pub fn interpret_control(
                 
                 CursorRight(value)
             } else {
-                Unknown
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
             }
         },
         0x44 => {
@@ -53,7 +53,7 @@ pub fn interpret_control(
                 
                 CursorLeft(value)
             } else {
-                Unknown
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
             }
         },
         0x45 => {
@@ -65,7 +65,7 @@ pub fn interpret_control(
                 
                 CursorNextLine(value)
             } else {
-                Unknown
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
             }
         },
         0x46 => {
@@ -77,7 +77,7 @@ pub fn interpret_control(
                 
                 CursorPrecedingLine(value)
             } else {
-                Unknown
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
             }
         },
         0x47 => {
@@ -89,7 +89,7 @@ pub fn interpret_control(
                 
                 CursorCharacterAbsolute(value)
             } else {
-                Unknown
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
             }
         },
         0x48 => {
@@ -102,7 +102,7 @@ pub fn interpret_control(
                 
                 CursorPosition(value_1, value_2)
             } else {
-                Unknown
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
             }
         },
         0x6D => {
@@ -127,11 +127,18 @@ pub fn interpret_control(
                 
                 SelectGraphicRendition(parameters)
             } else {
-                Unknown
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
             }
         }
-        _ => Unknown
+        _ => {
+            log_unknown(parameter_bytes, intermediary_bytes, final_byte)
+        }
     }
+}
+
+fn log_unknown(parameter_bytes: &[u8], intermediary_bytes: &[u8], final_byte: u8) -> ControlType {
+    println!("unknown sequence: params: {:?}, inter: {:?}, final: {:?}", parameter_bytes, intermediary_bytes, final_byte);
+    ControlType::Unknown
 }
 
 const NUMBER_RANGE: std::ops::RangeInclusive<u8> = 0x30..=0x39;

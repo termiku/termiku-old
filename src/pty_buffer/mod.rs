@@ -312,6 +312,8 @@ impl Screen {
     }
     
     fn handle_special_byte(&mut self, byte: u8, rasterizer: &mut Rasterizer) {
+        println!("special byte received! {}", byte);
+        
         match byte {
             
             BELL_BYTE => {
@@ -321,7 +323,7 @@ impl Screen {
             BACKSPACE_BYTE => {
                 let (row_number, column_number) = self.get_position_pointed_by_cursor();
                 
-                self.screen_lines[row_number].cells[column_number].state = CellState::Empty;
+                // self.screen_lines[row_number].cells[column_number].state = CellState::Empty;
                 self.screen_lines[row_number].rasterize(rasterizer);
                 
                 if column_number != 0 {

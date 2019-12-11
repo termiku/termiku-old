@@ -5,6 +5,7 @@ use crate::term::*;
 use crate::config::*;
 use crate::atlas::RectSize;
 use crate::rasterizer::*;
+use crate::window_event::*;
 
 use mio_extras::channel::Sender;
 
@@ -198,7 +199,13 @@ pub fn window(config: Config) {
                 match event {
                     WindowEvent::CloseRequested => action = Action::Stop,
                     WindowEvent::ReceivedCharacter(input) => {
-                        manager.send_input(*input)
+                        manager.send_event(TermikuWindowEvent::CharacterInput(*input))
+                    }
+                    WindowEvent::KeyboardInput { input, .. } => {
+                        // println!("{:?}", input);
+                        if let Some(event) = handle_keyboard_input(input) {
+                            manager.send_event(event);
+                        }
                     }
                     _ => (),
                 };
