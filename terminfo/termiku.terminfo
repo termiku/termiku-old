@@ -1,6 +1,7 @@
 termiku|Miku's Terminal,
     am,
     cols#80,
+    lines#28,
     colors#256,
     it#8,
     pairs#0x7fff,
