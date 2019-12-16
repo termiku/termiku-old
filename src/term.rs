@@ -45,13 +45,15 @@ pub struct Term {
     /// We probably want to implement terminal title setting on way or another.
     title: String,
     */
+   
+   pub to_remove: bool,
 }
 
 type WrappedTermList = Arc<RwLock<TermList>>;
 
 struct TermList {
     inner: Vec<Term>,
-    active_index: usize,
+    active_uid: usize,
     
     char_buffer: [u8; 4]
 }
@@ -60,7 +62,7 @@ impl TermList {
     pub fn new() -> Self {
         Self {
             inner: vec![],
-            active_index: 0,
+            active_uid: FIRST_TERMINAL_UID,
             
             char_buffer: [0; 4]
         }
@@ -71,8 +73,8 @@ impl TermList {
     }
     
     pub fn push_and_make_active(&mut self, term: Term) {
+        self.active_uid = term.uid;
         self.inner.push(term);
-        self.active_index = self.inner.len() - 1;
     }
     
     pub fn find_index(&self, uid: usize) -> Option<usize> {
@@ -85,11 +87,15 @@ impl TermList {
     }
     
     pub fn get_uid(&self, uid: usize) -> Option<&Term> {
-        self.get(self.find_index(uid).unwrap())
+        match self.find_index(uid) {
+            Some(index) => self.get(index),
+            None => None
+        }
+        
     }
     
     pub fn get_active(&self) -> Option<&Term> {
-        self.get(self.active_index)
+        self.get_uid(self.active_uid)
     }
     
     pub fn get_mut(&mut self, index: usize) -> Option<&mut Term> {
@@ -97,26 +103,47 @@ impl TermList {
     }
     
     pub fn get_uid_mut(&mut self, uid: usize) -> Option<&mut Term> {
-        let index = self.find_index(uid).unwrap();
-        self.inner.get_mut(index)
+        match self.find_index(uid) {
+            Some(index) => self.inner.get_mut(index),
+            None => None
+        }
     }
     
     pub fn get_active_mut(&mut self) -> Option<&mut Term> {
-        self.get_mut(self.active_index)
+        self.get_uid_mut(self.active_uid)
     }
     
     pub fn write_buffer_to_pty(&mut self, buffer: &[u8], index: usize) {
-        self.get_mut(index).unwrap().pty.pty.write_all(buffer).unwrap()
-    }
-    
-    pub fn write_buffer_to_active_pty(&mut self, buffer: &[u8]) {
-        self.write_buffer_to_pty(buffer, self.active_index)
+        if let Some(term) = self.get_mut(index) {
+            term.pty.pty.write_all(buffer);
+        }
     }
     
     pub fn write_buffer_to_uid_pty(&mut self, buffer: &[u8], uid: usize) {
-        self.write_buffer_to_pty(buffer, self.find_index(uid).unwrap())
+        if let Some(index) = self.find_index(uid) {
+            self.write_buffer_to_pty(buffer, index);
+        }
     }
-
+    
+    pub fn write_buffer_to_active_pty(&mut self, buffer: &[u8]) {
+        self.write_buffer_to_uid_pty(buffer, self.active_uid)
+    }
+    
+    /// Cleanup every child that has exited.
+    /// Returns the number of terminals inside inner after the cleanup.
+    pub fn cleanup_exited_children(&mut self) -> usize {        
+        for term in self.inner.iter_mut() {
+            if let Ok(status) = term.pty.process.try_wait() {
+                if status.is_some() {
+                    term.to_remove = true;
+                }
+            }
+        }
+        
+        self.inner.retain(|term| !term.to_remove);
+        
+        self.inner.len()
+    }
 }
 
 /// Manage a Termlist
@@ -174,6 +201,7 @@ impl TermManager {
                 for event in &events {
                     // This is a window event. We redirect to the active term
                     if event.token() == Token(RECEIVER_TOKEN) && event.readiness().is_readable() {
+                        // Should panic if poisoned.
                         let mut handle = cloned_termlist.write().unwrap();
                         
                         while let Ok(event) = receiver.try_recv() {
@@ -183,6 +211,7 @@ impl TermManager {
                     // We're leaving this to control the spawned process,
                     // but this should disappear eventually
                     } else if event.token() == Token(STDIN_TOKEN) && event.readiness().is_readable() {
+                        // Should panic if poisoned.
                         let mut handle = cloned_termlist.write().unwrap();
                         
                         while let Ok(amount) = io::stdin().read(&mut buffer) {
@@ -194,19 +223,25 @@ impl TermManager {
                         let uid = event.token().0;
                         
                         if event.readiness().is_readable() {
+                            // Should panic if poisoned.
                             let mut handle = cloned_termlist.write().unwrap();
                             
-                            let term = handle.get_uid_mut(uid).unwrap();
-                            
-                            let mut input: Vec<u8> = Vec::with_capacity(32);
-                            
-                            while let Ok(amount) = term.pty.pty.read(&mut buffer) {
-                                // println!("{}", String::from_utf8_lossy(&buffer[0..amount]));
-                                io::stdout().flush().unwrap();
-                                input.extend(&buffer[0..amount]);
+                            // Shouldn't panic, can just be that the term has exited and has been
+                            // cleaned up.
+                            if let Some(term) = handle.get_uid_mut(uid) {
+                                let mut input: Vec<u8> = Vec::with_capacity(32);
+                                
+                                while let Ok(amount) = term.pty.pty.read(&mut buffer) {
+                                    // println!("{}", String::from_utf8_lossy(&buffer[0..amount]));
+                                    
+                                    // Should panic if there's an error .
+                                    io::stdout().flush().unwrap();
+                                    input.extend(&buffer[0..amount]);
+                                }
+                                
+                                term.buffer.add_input(input)
                             }
                             
-                            term.buffer.add_input(input)
                         }
                     }
                 }
@@ -246,19 +281,27 @@ impl TermManager {
         self.poll.register(&term.pty, Token(term.uid), Ready::readable(), PollOpt::edge()).unwrap();
         
         {
+            // Should panic if poisoned.
             let mut list = self.list.write().unwrap(); 
             list.push(term);
         }
     }
     
     pub fn send_event(&mut self, event: TermikuWindowEvent) {
+        // Should panic if poisoned.
         self.sender.send(event).unwrap();
     }
     
     pub fn get_lines_from_active(&mut self, start: usize, end: usize) -> Option<Vec<DisplayCellLine>> {
         let updated = {
+            // Should panic if poisoned.
             let list = self.list.read().unwrap();
-            list.get_active().unwrap().buffer.is_updated()
+            
+            match list.get_active() {
+                Some(term) => term.buffer.is_updated(),
+                // We shouldn't try to update something that doesn't exist anymore.
+                None => false
+            }
         };
         
         if updated {
@@ -269,21 +312,41 @@ impl TermManager {
     }
     
     pub fn get_lines_from_active_force(&mut self, start: usize, end: usize) -> Vec<DisplayCellLine> {
+        // Should panic if poisoned.
         let mut list = self.list.write().unwrap();
-        list.get_active_mut().unwrap().buffer.get_range(start, end)
+        
+        match list.get_active_mut() {
+            Some(term) => term.buffer.get_range(start, end),
+            None => vec![]
+        }
     }
     
     pub fn is_active_updated(&self) -> bool {
+        // Should panic if poisoned.
         let list = self.list.read().unwrap();
-        list.get_active().unwrap().buffer.is_updated()
+        
+        match list.get_active() {
+            Some(term) => term.buffer.is_updated(),
+            None => false
+        }
     }
     
     pub fn dimensions_updated(&mut self) {
+        // Should panic if poisoned.
         let mut list = self.list.write().unwrap();
 
         for term in list.inner.iter_mut() {
             term.buffer.dimensions_updated();
         }
+    }
+    
+    /// Cleanup every exited terminals.
+    /// Return if the window should exit (i.e. there's no more terminals to display).
+    pub fn cleanup_exited_terminals(&mut self) -> bool {
+        // Should panic if poisoned.
+        let mut list = self.list.write().unwrap();
+        
+        list.cleanup_exited_children() == 0
     }
 }
 
@@ -322,6 +385,7 @@ impl TermFactory {
             pty,
             buffer,
             uid: self.count,
+            to_remove: false,
         };
 
         self.count += 1;
