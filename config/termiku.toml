@@ -7,5 +7,8 @@ program = "sh"
 args = []
 
 [font]
+# You probably don't want to touch this if running ncurses programs,
+# since cols and rows are hardcoded inside the terminfo file according to
+# those specific values
 size = 20
 path = "/usr/share/fonts/OTF/FiraCode-Regular.otf"
