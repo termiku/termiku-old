@@ -71,12 +71,21 @@ pub enum ControlType {
     
     /// CUP  
     /// CSI Pn1;Pn2 04/08  
-    /// CSI Pn1;Pn2 0x048  
+    /// CSI Pn1;Pn2 0x48  
     /// CSI Pn1;Pn2 H  
     ///   
     /// Pn1 = 0x01  
     /// Pn2 = 0x01  
     CursorPosition(u16, u16),
+    
+    
+    /// DL  
+    /// CSI Pn 04/13  
+    /// CSI Pn 0x4D  
+    /// CSI Pn M  
+    ///   
+    /// Pn = 0x01  
+    DeleteLine(u16),
     
     /// SGR
     /// CSI Ps... 06/13
