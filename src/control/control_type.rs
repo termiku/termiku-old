@@ -78,6 +78,13 @@ pub enum ControlType {
     /// Pn2 = 0x01  
     CursorPosition(u16, u16),
     
+    /// ED  
+    /// CSI Ps 04/10  
+    /// CSI Ps 0x41  
+    /// CSI Ps J
+    /// 
+    /// Pn = 0x00
+    EraseInPage(u16),
     
     /// DL  
     /// CSI Pn 04/13  
