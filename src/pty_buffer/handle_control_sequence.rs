@@ -4,6 +4,7 @@ use crate::control::control_type::*;
 use ControlType::*;
 
 impl Screen {
+    #[allow(clippy::cognitive_complexity)] // I won't comment on this.
     pub fn handle_control_sequence(&mut self, control: ControlType, rasterizer: &mut Rasterizer) {
         println!("control sequence received! {:?}", control);
         
@@ -140,6 +141,64 @@ impl Screen {
                     }
                 };                
             },
+            
+            // Erase cells of the current page.
+            // If parameter = 0, erase everything after and including the cursor.
+            // If parameter = 1, erase everything before and including the cursor.
+            // If parameter = 2, erase everything.
+            EraseInPage(parameter) => {
+                match parameter {
+                    0 => {
+                        let mut new_line = CellLine::new(
+                            self.line_cell_width, 
+                            CellProperties::new()
+                        );
+                        
+                        new_line.rasterize(rasterizer);
+                        
+                        for index in self.cursor.position.y .. self.line_cell_height {
+                            self.screen_lines[index] = new_line.clone();
+                        }
+                        
+                        for index in self.cursor.position.x .. self.line_cell_width {
+                            self.screen_lines[self.cursor.position.y - 1].cells[index] = Cell::empty(CellProperties::new())
+                        }
+                        
+                        self.screen_lines[self.cursor.position.y - 1].rasterize(rasterizer);
+                    },
+                    1 => {
+                        let mut new_line = CellLine::new(
+                            self.line_cell_width, 
+                            CellProperties::new()
+                        );
+                        
+                        new_line.rasterize(rasterizer);
+                        
+                        for index in 0 .. self.cursor.position.y - 1 {
+                            self.screen_lines[index] = new_line.clone();
+                        }
+                        
+                        for index in 0 .. self.cursor.position.x - 1 {
+                            self.screen_lines[self.cursor.position.y - 1].cells[index] = Cell::empty(CellProperties::new())
+                        }
+                        
+                        self.screen_lines[self.cursor.position.y - 1].rasterize(rasterizer);
+                    },
+                    2 => {
+                        let mut new_line = CellLine::new(
+                            self.line_cell_width, 
+                            CellProperties::new()
+                        );
+                        
+                        new_line.rasterize(rasterizer);
+                        
+                        for index in 0..self.line_cell_height {
+                            self.screen_lines[index] = new_line.clone();
+                        }
+                    },
+                    _ => {}
+                }
+            }
             
             // Delete the current and the n-1 following lines, then make the the cursor go to
             // column = 1.

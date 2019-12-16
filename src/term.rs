@@ -115,7 +115,7 @@ impl TermList {
     
     pub fn write_buffer_to_pty(&mut self, buffer: &[u8], index: usize) {
         if let Some(term) = self.get_mut(index) {
-            term.pty.pty.write_all(buffer);
+            term.pty.pty.write_all(buffer).unwrap();
         }
     }
     

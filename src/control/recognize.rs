@@ -105,6 +105,18 @@ pub fn interpret_control(
                 log_unknown(parameter_bytes, intermediary_bytes, final_byte)
             }
         },
+        0x4A => {
+            // ED
+            if intermediary_bytes.is_empty() {
+                parse_parameters(parameter_bytes, parameters_buffer);
+                
+                let value = get_parameter_default(parameters_buffer, 0, 0);
+                
+                EraseInPage(value)
+            } else {
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
+            }
+        },
         0x4D => {
             // DL
             if intermediary_bytes.is_empty() {
