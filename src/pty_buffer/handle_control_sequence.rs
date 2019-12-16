@@ -4,7 +4,7 @@ use crate::control::control_type::*;
 use ControlType::*;
 
 impl Screen {
-    pub fn handle_control_sequence(&mut self, control: ControlType) {
+    pub fn handle_control_sequence(&mut self, control: ControlType, rasterizer: &mut Rasterizer) {
         println!("control sequence received! {:?}", control);
         
         match control {
@@ -140,6 +140,43 @@ impl Screen {
                     }
                 };                
             },
+            
+            // Delete the current and the n-1 following lines, then make the the cursor go to
+            // column = 1.
+            // If = 0, treats it as n = 1.
+            // If the number of line to delete would be too high and go past the number of lines,
+            // delete until the last line.
+            DeleteLine(parameter) => {
+                let number_to_delete = if parameter == 0 {
+                    1
+                } else {
+                    parameter
+                };
+                
+                let cursor_y = self.cursor.position.y;
+                
+                let number_to_delete = if (number_to_delete - 1) as usize + cursor_y > self.line_cell_height {
+                    (self.line_cell_height - cursor_y + 1) as u16
+                } else {
+                    number_to_delete
+                };
+                
+                println!("number to delete: {}", number_to_delete);
+                
+                for _ in 0..number_to_delete {
+                    self.screen_lines.remove(cursor_y - 1);
+                }
+                
+                while self.screen_lines.len() < self.line_cell_height {
+                    let mut new_line = CellLine::new(self.line_cell_width, CellProperties::new());
+                    new_line.rasterize(rasterizer);
+                    self.screen_lines.push(new_line);
+                }
+                
+                assert!(self.screen_lines.len() == self.line_cell_height);
+                
+                self.cursor.position.x = 1;
+            }
             
             // One of the heaviest control sequence, which changes the way characters are now
             // printed on screen.

@@ -263,7 +263,7 @@ impl Screen {
                 match self.control_parser.parse_byte(*byte) {
                     Ok(maybe_control) => {
                         if let Some(control) = maybe_control {
-                            self.handle_control_sequence(control);
+                            self.handle_control_sequence(control, rasterizer);
                         }
                     },
                     Err(_) => {
