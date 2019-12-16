@@ -289,9 +289,9 @@ impl Screen {
         }
     }
 
-    pub fn next_line(&mut self) {
+    pub fn next_line(&mut self, rasterizer: &mut Rasterizer) {
         if self.cursor.position.y == self.line_cell_height {
-            self.push_line_to_history();
+            self.push_line_to_history(rasterizer);
         } else {
             self.cursor.position.y += 1;
         }
@@ -378,7 +378,7 @@ impl Screen {
                     row_number += 1;
                     column_number = 0;
                     if row_number >= self.line_cell_height {
-                        self.push_line_to_history();
+                        self.push_line_to_history(rasterizer);
                     }
                 }
             }
@@ -389,10 +389,12 @@ impl Screen {
         
     }
     
-    fn push_line_to_history(&mut self) {
+    fn push_line_to_history(&mut self, rasterizer: &mut Rasterizer) {
         let line = self.screen_lines.remove(0);
         self.history.push_front(line);
-        self.screen_lines.push(CellLine::new(self.line_cell_width, CellProperties::new()));
+        let mut new = CellLine::new(self.line_cell_width, CellProperties::new());
+        new.rasterize(rasterizer);
+        self.screen_lines.push(new);
     }
 }
 
@@ -475,6 +477,6 @@ impl PtyBuffer {
     }
     
     fn complete_line(&mut self) {
-        self.screen.next_line();
+        self.screen.next_line(&mut self.rasterizer.write().unwrap());
     }
 }
