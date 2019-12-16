@@ -84,7 +84,5 @@ pub enum ControlType {
     /// CSI Ps... m
     /// 
     /// Ps = 0
-    /// 
-    /// 0 is the parameters buffer, 1 is the actual length of data inside 
     SelectGraphicRendition(Vec<u16>)
 }

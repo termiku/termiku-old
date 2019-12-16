@@ -1,8 +1,6 @@
 # Environment variables
 [env]
-TERM = "dumb"
-# Test cookie
-TERMIKU = "nya!"
+TERM = "termiku"
 
 [shell]
 program = "sh"
