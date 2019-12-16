@@ -231,7 +231,7 @@ impl <'a> Drawer<'a> {
         let tex_bottom_right_y = tex_rect.bottom_right().y as f32 / atlas_height as f32 * -1.0;
         
         let fg_colour = if cell.is_cursor && display_cursor {
-            SimpleColor::White.to_color().to_opengl_color()
+            SimpleColor::Black.to_color().to_opengl_color()
         } else {
             cell.fg_color.to_opengl_color()
         };
