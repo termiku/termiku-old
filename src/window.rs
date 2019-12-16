@@ -127,6 +127,10 @@ pub fn window(config: Config) {
     
     let rasterizer = rasterizer.clone();
     start_loop(events_loop, move |events| {
+        if manager.cleanup_exited_terminals() {
+            return Action::Stop;
+        }
+        
         t += get_time_diff(&mut old);
         let mut need_refresh = false;
         
@@ -193,7 +197,7 @@ pub fn window(config: Config) {
         }
         
 
-        let mut action = Action::Continue;
+        let mut action = Action::Continue;        
         for event in events {
             if let Event::WindowEvent { event, .. } = event {
                 match event {
