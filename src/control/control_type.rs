@@ -102,13 +102,17 @@ pub enum ControlType {
     /// Ps = 0
     SelectGraphicRendition(Vec<u16>),
     
-    /// ???
-    /// CSI 0x73
-    /// CSI s
+    /// ???  
+    /// CSI 0x73  
+    /// CSI s  
+    ///   
+    /// Note: Not documented by ECMA-48  
     SaveCursor,
     
-    /// ???
-    /// CSI 0x75
-    /// CSI u
+    /// ???  
+    /// CSI 0x75  
+    /// CSI u  
+    ///   
+    /// Note: Not documented by ECMA-48  
     RestoreCursor
 }
