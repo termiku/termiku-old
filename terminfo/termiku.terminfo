@@ -38,6 +38,8 @@ termiku|Miku's Terminal,
                           %?%p9%t;11%;m,
     sgr0=\E[m,
     
+# Cursor save and restore
+# Usually implemented as \E7 and \E8
     sc=\E[s,
     rc=\E[u,
     
