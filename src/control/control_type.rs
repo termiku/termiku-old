@@ -94,6 +94,18 @@ pub enum ControlType {
     /// Pn = 0x01  
     DeleteLine(u16),
     
+    /// SM
+    /// CSI Ps... 06/08
+    /// CSI Ps... 0x68
+    /// CSI Ps... h
+    SetMode(Vec<u16>),
+    
+    /// RM
+    /// CSI Ps... 06/12
+    /// CSI Ps... 0x6C
+    /// CSI Ps... l
+    ResetMode(Vec<u16>),
+    
     /// SGR
     /// CSI Ps... 06/13
     /// CSI Ps... 0x6D
@@ -101,7 +113,7 @@ pub enum ControlType {
     /// 
     /// Ps = 0
     SelectGraphicRendition(Vec<u16>),
-    
+        
     /// ???  
     /// CSI 0x73  
     /// CSI s  
@@ -114,5 +126,5 @@ pub enum ControlType {
     /// CSI u  
     ///   
     /// Note: Not documented by ECMA-48  
-    RestoreCursor
+    RestoreCursor,
 }

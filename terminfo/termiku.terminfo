@@ -43,4 +43,7 @@ termiku|Miku's Terminal,
     sc=\E[s,
     rc=\E[u,
     
+    smcup=\E[?1049h,
+    rmcup=\E[?1049l,
+    
     

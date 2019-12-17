@@ -220,8 +220,6 @@ impl Screen {
                     number_to_delete
                 };
                 
-                println!("number to delete: {}", number_to_delete);
-                
                 for _ in 0..number_to_delete {
                     self.screen_lines.remove(cursor_y - 1);
                 }
@@ -235,6 +233,34 @@ impl Screen {
                 assert!(self.screen_lines.len() == self.line_cell_height);
                 
                 self.cursor.position.x = 1;
+            }
+            
+            // Set the mode in which the terminal will operate in. Currently only implements
+            // an alternative buffer (smcup).
+            SetMode(parameters) => {
+                let mut index = 0usize;
+                
+                loop {
+                    if index >= parameters.len() {
+                        break
+                    }
+                    
+                    index = self.exec_sm_property(&parameters, index);
+                }
+            },
+            
+            // Reset the mode in which the terminal will operate in. Currently only implements
+            // an alternative buffer (rmcup).
+            ResetMode(parameters) => {
+                let mut index = 0usize;
+                
+                loop {
+                    if index >= parameters.len() {
+                        break
+                    }
+                    
+                    index = self.exec_rm_property(&parameters, index);
+                }
             }
             
             // One of the heaviest control sequence, which changes the way characters are now
@@ -272,6 +298,46 @@ impl Screen {
             
             _ => {}
         }
+    }
+    
+    #[allow(clippy::single_match)]
+    fn exec_sm_property(&mut self, parameters: &[u16], index: usize) -> usize {
+        let property = parameters[index];
+        
+        match property {
+            1049 => {
+                if !self.state.is_alternative {
+                    self.state.is_alternative = true;
+                    
+                    std::mem::swap(&mut self.cursor, &mut self.alternative_cursor);
+                    std::mem::swap(&mut self.screen_lines, &mut self.alternative_screen_lines);
+                }
+            },
+            
+            _ => {}
+        }
+        
+        index + 1
+    }
+    
+    #[allow(clippy::single_match)]
+    fn exec_rm_property(&mut self, parameters: &[u16], index: usize) -> usize {
+        let property = parameters[index];
+        
+        match property {
+            1049 => {
+                if self.state.is_alternative {
+                    self.state.is_alternative = false;
+                    
+                    std::mem::swap(&mut self.cursor, &mut self.alternative_cursor);
+                    std::mem::swap(&mut self.screen_lines, &mut self.alternative_screen_lines);
+                }
+            },
+            
+            _ => {}
+        }
+        
+        index + 1
     }
     
     fn exec_sgr_property(&mut self, parameters: &[u16], index: usize) -> usize {
