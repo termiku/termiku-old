@@ -372,7 +372,8 @@ impl TermFactory {
         let pty = pty::spawn_process(
             &self.config.shell.program,
             self.config.shell.args.as_slice(),
-            &self.config.env
+            &self.config.env,
+            self.rasterizer.read().unwrap().get_winsize()
         ).unwrap();
         
         let buffer = PtyBuffer::new(self.rasterizer.clone());
