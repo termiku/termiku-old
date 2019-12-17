@@ -198,7 +198,7 @@ pub struct PtyWithProcess {
     pub process: Child,
 }
 
-pub fn spawn_process <H> (program: &str, args: &[String], env: &Option<HashMap<String, String, H>>) -> io::Result<PtyWithProcess> {
+pub fn spawn_process <H> (program: &str, args: &[String], env: &Option<HashMap<String, String, H>>, winsize: libc::winsize) -> io::Result<PtyWithProcess> {
     let pty = Pty::open()?;
     let fds = pty.as_raw_fds();
 
@@ -214,17 +214,25 @@ pub fn spawn_process <H> (program: &str, args: &[String], env: &Option<HashMap<S
 
     unsafe {
         command.pre_exec(move || {
-            use libc::{c_void, TIOCSCTTY};
+            use libc::{c_void, TIOCSCTTY, TIOCSWINSZ};
 
             let res = libc::setsid();
 
-            if  res == -1 {
+            if res == -1 {
                 return Err(io::Error::last_os_error());
             }
 
             let res = libc::ioctl(fds.pts, TIOCSCTTY, ptr::null::<c_void>());
 
-            if  res == -1 {
+            if res == -1 {
+                return Err(io::Error::last_os_error());
+            }
+            
+            // Set the size (cells and pixels) to the pts.
+            // Make it available to applications through TIOCGWINSZ.
+            let res = libc::ioctl(fds.pts, TIOCSWINSZ, &winsize);
+            
+            if res == -1 {
                 return Err(io::Error::last_os_error());
             }
 

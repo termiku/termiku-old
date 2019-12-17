@@ -109,8 +109,8 @@ impl Cursor {
         }
     }
     
-    pub fn save(&mut self, position: Position) {
-        self.saved = Some(position);
+    pub fn save(&mut self) {
+        self.saved = Some(self.position);
     }
     
     pub fn restore(&mut self) {
@@ -219,13 +219,22 @@ impl CellLine {
     }
 }
 
+#[derive(Copy, Clone, Default)]
+pub struct ScreenState {
+    /// Alternative buffer state
+    pub is_alternative: bool
+}
+
 pub struct Screen {
     pub line_cell_width: usize,
     pub line_cell_height: usize,
-    pub screen_lines: Vec<CellLine>,
     pub history: VecDeque<CellLine>,
+    pub control_parser: ControlSeqenceParser,
+    pub screen_lines: Vec<CellLine>,
     pub cursor: Cursor,
-    pub control_parser: ControlSeqenceParser
+    pub alternative_screen_lines: Vec<CellLine>,
+    pub alternative_cursor: Cursor,
+    pub state: ScreenState,
 }
 
 impl Screen {
@@ -242,13 +251,21 @@ impl Screen {
         
         let history: VecDeque<CellLine> = VecDeque::new();
         
+        let cursor = Cursor::new();
+        
         Self {
             line_cell_width,
             line_cell_height,
-            screen_lines,
             history,
-            cursor: Cursor::new(),
-            control_parser: ControlSeqenceParser::new()
+            control_parser: ControlSeqenceParser::new(),
+            
+            screen_lines: screen_lines.clone(),
+            cursor,
+            
+            alternative_screen_lines: screen_lines,
+            alternative_cursor: cursor,
+            
+            state: ScreenState::default()
         }
     }
     
@@ -312,7 +329,7 @@ impl Screen {
     }
     
     fn handle_special_byte(&mut self, byte: u8, rasterizer: &mut Rasterizer) {
-        println!("special byte received! {}", byte);
+        println!("special byte received! {:x?}", byte);
         
         match byte {
             
@@ -391,7 +408,12 @@ impl Screen {
     
     fn push_line_to_history(&mut self, rasterizer: &mut Rasterizer) {
         let line = self.screen_lines.remove(0);
-        self.history.push_front(line);
+        
+        // If we're in the alternative buffer state, we don't want to polute the main history.
+        if !self.state.is_alternative {
+            self.history.push_front(line);
+        }
+        
         let mut new = CellLine::new(self.line_cell_width, CellProperties::new());
         new.rasterize(rasterizer);
         self.screen_lines.push(new);

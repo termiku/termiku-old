@@ -2,7 +2,7 @@ use super::*;
 
 // Interpret a control sequence, given all of its raw data.
 // Also need a paramater buffer, which get reused to reduce dynamic allocations.
-pub fn interpret_control(
+pub fn interpret_long_control(
     parameter_bytes: &[u8], intermediary_bytes: &[u8], final_byte: u8, parameters_buffer: &mut Vec<Option<u16>>
 ) -> ControlType {
     use ControlType::*;
@@ -128,40 +128,74 @@ pub fn interpret_control(
             } else {
                 log_unknown(parameter_bytes, intermediary_bytes, final_byte)
             }
-        }
-        0x6D => {
-            // SGR
-            if intermediary_bytes.is_empty() {
-                parse_parameters(parameter_bytes, parameters_buffer);
-                
-                let mut parameters = Vec::<u16>::with_capacity(8);
-
-                for index in 0..parameters_buffer.len() {                    
-                    parameters.push(
-                        match parameters_buffer.get(index) {
-                            Some(maybe_data) => {
-                                match maybe_data {
-                                    Some(data) => *data,
-                                    None => 0u16
-                                }
-                            },
-                            None => break,
-                    });
-                }
-                
-                SelectGraphicRendition(parameters)
+        },
+        0x68 => {
+            if intermediary_bytes.is_empty() {                
+                SetMode(parse_unknown_length(parameter_bytes, parameters_buffer))
             } else {
                 log_unknown(parameter_bytes, intermediary_bytes, final_byte)
             }
-        }
+        },
+        0x6C => {
+            if intermediary_bytes.is_empty() {                
+                ResetMode(parse_unknown_length(parameter_bytes, parameters_buffer))
+            } else {
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
+            }
+        }        
+        0x6D => {
+            // SGR
+            if intermediary_bytes.is_empty() {
+                SelectGraphicRendition(parse_unknown_length(parameter_bytes, parameters_buffer))
+            } else {
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
+            }
+        },
+        0x73 => {
+            // SaveCursor
+            if intermediary_bytes.is_empty() {
+                SaveCursor
+            } else {
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
+            }
+        },
+        0x75 => {
+            // RestoreCursor
+            if intermediary_bytes.is_empty() {
+                RestoreCursor
+            } else {
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
+            }
+        },
         _ => {
             log_unknown(parameter_bytes, intermediary_bytes, final_byte)
         }
     }
 }
 
+fn parse_unknown_length(parameters_bytes: &[u8], parameters_buffer: &mut Vec<Option<u16>>) -> Vec<u16> {
+    parse_parameters(parameters_bytes, parameters_buffer);
+    
+    let mut parameters = Vec::<u16>::with_capacity(8);
+
+    for index in 0..parameters_buffer.len() {                    
+        parameters.push(
+            match parameters_buffer.get(index) {
+                Some(maybe_data) => {
+                    match maybe_data {
+                        Some(data) => *data,
+                        None => 0u16
+                    }
+                },
+                None => break,
+        });
+    }
+    
+    parameters
+}
+
 fn log_unknown(parameter_bytes: &[u8], intermediary_bytes: &[u8], final_byte: u8) -> ControlType {
-    println!("unknown sequence: params: {:?}, inter: {:?}, final: {:?}", parameter_bytes, intermediary_bytes, final_byte);
+    println!("unknown sequence: params: {:x?}, inter: {:x?}, final: {:x?}", parameter_bytes, intermediary_bytes, final_byte);
     ControlType::Unknown
 }
 
@@ -174,6 +208,7 @@ const NUMBER_RANGE: std::ops::RangeInclusive<u8> = 0x30..=0x39;
 // TODO: Another implementation which handle sub-strings.
 // 
 // Doesn't differentiate `:` and `;` for the delimiters.
+// '?' and the likes are ignored. TODO: It shouldn't.
 // 
 // If a parameter is present, parse it to a Some(value), if not, parse it to a None.
 // This way we can replace a None to its default value.

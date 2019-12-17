@@ -197,6 +197,15 @@ impl Rasterizer {
         }
     }
     
+    pub fn get_winsize(&self) -> libc::winsize {
+        libc::winsize {
+            ws_col: self.get_line_cell_width() as u16,
+            ws_row: self.get_line_cell_height() as u16,
+            ws_xpixel: self.dimensions.width as u16,
+            ws_ypixel: self.dimensions.height as u16,
+        }
+    }
+    
     pub fn cells_to_display_cell_lines(&mut self, cells: &[Cell]) -> Vec<DisplayCellLine> {
         let line_cell_width = self.get_line_cell_width();
         
