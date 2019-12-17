@@ -117,7 +117,7 @@ impl ControlSeqenceParser {
                 } else if FINAL_RANGE.contains(&byte) {
                     self.buffer.push(byte);
                     self.state = ParserState::NotParsing;
-                    Ok(Some(self.parse_buffer()))
+                    Ok(Some(self.parse_long_buffer()))
                 } else {
                     Err(ControlSequenceError::InvalidParameterByte)
                 }
@@ -130,7 +130,7 @@ impl ControlSeqenceParser {
                 } else if FINAL_RANGE.contains(&byte) {
                     self.buffer.push(byte);
                     self.state = ParserState::NotParsing;
-                    Ok(Some(self.parse_buffer()))
+                    Ok(Some(self.parse_long_buffer()))
                 } else {
                     Err(ControlSequenceError::InvalidIntermediaryByte)
                 }
@@ -152,7 +152,7 @@ impl ControlSeqenceParser {
     
     // Parse the buffer raw data, and deleguate its interpretation, returning the result.
     // Also reset the parser.
-    fn parse_buffer(&mut self) -> ControlType {
+    fn parse_long_buffer(&mut self) -> ControlType {
         let parameter_bytes: &[u8] = &self.buffer[2..self.parameter_length + 2];
         let intermediary_bytes: &[u8] = &self.buffer[
             self.parameter_length + 2
@@ -162,7 +162,7 @@ impl ControlSeqenceParser {
         let final_byte: &u8 = &self.buffer[self.buffer.len() - 1];
         
         self.parameters_buffer.clear();
-        let control_type = interpret_control(parameter_bytes, intermediary_bytes, *final_byte, &mut self.parameters_buffer);
+        let control_type = interpret_long_control(parameter_bytes, intermediary_bytes, *final_byte, &mut self.parameters_buffer);
         
     
         self.reset();    

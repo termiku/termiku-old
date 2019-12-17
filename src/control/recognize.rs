@@ -2,7 +2,7 @@ use super::*;
 
 // Interpret a control sequence, given all of its raw data.
 // Also need a paramater buffer, which get reused to reduce dynamic allocations.
-pub fn interpret_control(
+pub fn interpret_long_control(
     parameter_bytes: &[u8], intermediary_bytes: &[u8], final_byte: u8, parameters_buffer: &mut Vec<Option<u16>>
 ) -> ControlType {
     use ControlType::*;
@@ -153,7 +153,23 @@ pub fn interpret_control(
             } else {
                 log_unknown(parameter_bytes, intermediary_bytes, final_byte)
             }
-        }
+        },
+        0x73 => {
+            // SaveCursor
+            if intermediary_bytes.is_empty() {
+                SaveCursor
+            } else {
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
+            }
+        },
+        0x75 => {
+            // RestoreCursor
+            if intermediary_bytes.is_empty() {
+                RestoreCursor
+            } else {
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
+            }
+        },
         _ => {
             log_unknown(parameter_bytes, intermediary_bytes, final_byte)
         }
@@ -161,7 +177,7 @@ pub fn interpret_control(
 }
 
 fn log_unknown(parameter_bytes: &[u8], intermediary_bytes: &[u8], final_byte: u8) -> ControlType {
-    println!("unknown sequence: params: {:?}, inter: {:?}, final: {:?}", parameter_bytes, intermediary_bytes, final_byte);
+    println!("unknown sequence: params: {:x?}, inter: {:x?}, final: {:x?}", parameter_bytes, intermediary_bytes, final_byte);
     ControlType::Unknown
 }
 

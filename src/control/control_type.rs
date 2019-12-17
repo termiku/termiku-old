@@ -100,5 +100,15 @@ pub enum ControlType {
     /// CSI Ps... m
     /// 
     /// Ps = 0
-    SelectGraphicRendition(Vec<u16>)
+    SelectGraphicRendition(Vec<u16>),
+    
+    /// ???
+    /// CSI 0x73
+    /// CSI s
+    SaveCursor,
+    
+    /// ???
+    /// CSI 0x75
+    /// CSI u
+    RestoreCursor
 }

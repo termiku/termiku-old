@@ -109,8 +109,8 @@ impl Cursor {
         }
     }
     
-    pub fn save(&mut self, position: Position) {
-        self.saved = Some(position);
+    pub fn save(&mut self) {
+        self.saved = Some(self.position);
     }
     
     pub fn restore(&mut self) {

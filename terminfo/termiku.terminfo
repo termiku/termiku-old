@@ -38,4 +38,7 @@ termiku|Miku's Terminal,
                           %?%p9%t;11%;m,
     sgr0=\E[m,
     
+    sc=\E[s,
+    rc=\E[u,
+    
     

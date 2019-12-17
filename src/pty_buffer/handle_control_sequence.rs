@@ -262,6 +262,14 @@ impl Screen {
                 }
             },
             
+            SaveCursor => {
+                self.cursor.save();
+            },
+            
+            RestoreCursor => {
+                self.cursor.restore();
+            },
+            
             _ => {}
         }
     }
