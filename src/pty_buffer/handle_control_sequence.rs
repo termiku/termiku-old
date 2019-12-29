@@ -1,6 +1,8 @@
 use super::*;
 
 use crate::control::control_type::*;
+use crate::youtube::URL_PADDINGLESS_BASE64_RANGE;
+
 use ControlType::*;
 
 impl Screen {
@@ -294,6 +296,17 @@ impl Screen {
             
             RestoreCursor => {
                 self.cursor.restore();
+            },
+            
+            TermikuYoutubePlayback(data) => {
+                if data.iter().all(|x| URL_PADDINGLESS_BASE64_RANGE.contains(x)) {
+                    self.sender.lock().unwrap().send(
+                        ScreenEvent {
+                            terminal_id: self.id,
+                            event: ScreenEventType::PlayYoutubeVideo(String::from_utf8_lossy(&data).to_string()),
+                        }
+                    ).unwrap();
+                }
             },
             
             _ => {}

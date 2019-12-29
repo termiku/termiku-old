@@ -19,6 +19,8 @@ use std::io::Cursor;
 use std::time::{Duration, Instant, SystemTime};
 use std::sync::{Arc, RwLock};
 
+pub const DEFAULT_BG: (f32, f32, f32, f32) = (0.0, 0.0, 0.0, 0.5);
+
 pub fn window(config: Config) {    
     let events_loop = EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new()
@@ -56,19 +58,19 @@ pub fn window(config: Config) {
             &[
                 Vertex {
                     position: [-1.0, -1.0],
-                    tex_coords: [0.0, 0.0],
+                    tex_coords: [-1.0, 0.0],
                 },
                 Vertex {
                     position: [-1.0, 1.0],
-                    tex_coords: [0.0, 1.0],
+                    tex_coords: [-1.0, -1.0],
                 },
                 Vertex {
                     position: [1.0, 1.0],
-                    tex_coords: [1.0, 1.0],
+                    tex_coords: [0.0, -1.0],
                 },
                 Vertex {
                     position: [1.0, -1.0],
-                    tex_coords: [1.0, 0.0],
+                    tex_coords: [0.0, 0.0],
                 },
             ],
         )
@@ -93,19 +95,19 @@ pub fn window(config: Config) {
                        }
                    ",
 
-        fragment: "
+        fragment: &format!("
                        #version 140
                        uniform sampler2D tex;
                        in vec2 v_tex_coords;
                        out vec4 f_color;
-                       void main() {
-                           f_color = texture(tex, v_tex_coords);
-                       }
-                   "
+                       void main() {{
+                           f_color = vec4(texture(tex, v_tex_coords).xyz, {});
+                       }}
+                   ", DEFAULT_BG.3)
     })
     .unwrap();
 
-    let display_background = false;
+    let mut display_background = false;
 
     let mut drawer = Drawer::new(&display, config.clone());
     let rasterizer = Arc::new(RwLock::new(Rasterizer::new(config.clone(), get_display_size(&display))));
@@ -124,6 +126,8 @@ pub fn window(config: Config) {
     let mut old_display_cursor = false;
     
     let mut display_cursor_t_base = 0u128;
+    
+    let mut frame: Vec<u8> = vec![0; (dimensions.width * dimensions.height) as usize];
     
     let rasterizer = rasterizer.clone();
     start_loop(events_loop, move |events| {
@@ -163,23 +167,38 @@ pub fn window(config: Config) {
             need_refresh = true;
         }
         
-        if need_refresh {
-            let uniforms = uniform! {
-                matrix: [
-                    [1.0, 0.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0, 0.0],
-                    [0.0, 0.0, 1.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0f32]
-                ],
-                tex: &opengl_texture
-            };
-            
+        if let Some(new_frame) = manager.get_youtube_frame_from_active() {
+            frame = new_frame;
+            need_refresh = true;
+            display_background = true;
+        } else {
+            display_background = false;
+        }
+        
+        if need_refresh {            
             // drawing a frame
             let mut target = display.draw();
             
-            target.clear_color(0.0, 0.0, 0.0, 0.5);
+            target.clear_color(DEFAULT_BG.0, DEFAULT_BG.1, DEFAULT_BG.2, DEFAULT_BG.3);
             
             if display_background {
+                let glium_image =
+                    glium::texture::RawImage2d::from_raw_rgb(frame.clone(), (dimensions.width, dimensions.height));
+
+                let opengl_texture =
+                    glium::texture::Texture2d::new(&display, glium_image).unwrap();
+                
+                
+                let uniforms = uniform! {
+                    matrix: [
+                        [1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0f32]
+                    ],
+                    tex: &opengl_texture
+                };
+                
                 target
                 .draw(
                     &vertex_buffer,

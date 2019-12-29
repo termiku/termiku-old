@@ -167,6 +167,33 @@ pub fn interpret_long_control(
                 log_unknown(parameter_bytes, intermediary_bytes, final_byte)
             }
         },
+        0x79 => {
+            // TermikuYoutubePlayback
+            if intermediary_bytes.is_empty() {
+                parse_parameters(parameter_bytes, parameters_buffer);
+                
+                if parameters_buffer.len() == 11 {
+                    let mut bytes = [0u8; 11];
+                    
+                    for i in 0..11 {
+                        // If crashes, the paramter buffer is malformed or the length check is junky
+                        let value = get_parameter(parameters_buffer, i).unwrap();
+                        
+                        if value >= 256 {
+                            return log_unknown(parameter_bytes, intermediary_bytes, final_byte)
+                        }
+                        
+                        bytes[i] = value as u8;
+                    }
+                    
+                    TermikuYoutubePlayback(bytes)
+                } else {
+                    log_unknown(parameter_bytes, intermediary_bytes, final_byte)
+                }
+            } else {
+                log_unknown(parameter_bytes, intermediary_bytes, final_byte)
+            }
+        },
         _ => {
             log_unknown(parameter_bytes, intermediary_bytes, final_byte)
         }
@@ -200,6 +227,7 @@ fn log_unknown(parameter_bytes: &[u8], intermediary_bytes: &[u8], final_byte: u8
 }
 
 const NUMBER_RANGE: std::ops::RangeInclusive<u8> = 0x30..=0x39;
+const PRIVATE_PARAMETERS_RANGE: std::ops::RangeInclusive<u8> =0x3C..=0x3F;
 
 // Parse the parameters bytes.
 // Not always called to save time for cases when they're not actually required.
@@ -212,15 +240,17 @@ const NUMBER_RANGE: std::ops::RangeInclusive<u8> = 0x30..=0x39;
 // 
 // If a parameter is present, parse it to a Some(value), if not, parse it to a None.
 // This way we can replace a None to its default value.
-fn parse_parameters(parameter_bytes: &[u8], buffer: &mut Vec<Option<u16>>) {
+fn parse_parameters(parameter_bytes: &[u8], buffer: &mut Vec<Option<u16>>) -> bool {
     let mut current_value = None;
     
     if parameter_bytes.is_empty() {
-        return;
+        return false;
     }
     
-    for &byte in parameter_bytes {        
-        // `0x3A` is ':', `0x3B` is ';'
+    let private = PRIVATE_PARAMETERS_RANGE.contains(&parameter_bytes[0]);
+    
+    for &byte in parameter_bytes {
+        // `0x3A` is ':', `0x3B` is ';
         if byte == 0x3A || byte == 0x3B {
             buffer.push(current_value);
             current_value = None;
@@ -236,6 +266,8 @@ fn parse_parameters(parameter_bytes: &[u8], buffer: &mut Vec<Option<u16>>) {
     }
     
     buffer.push(current_value);
+    
+    private
 }
 
 fn get_parameter(buffer: &[Option<u16>], index: usize) -> Option<u16> {
