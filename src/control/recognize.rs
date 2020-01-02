@@ -195,7 +195,7 @@ fn parse_unknown_length(parameters_bytes: &[u8], parameters_buffer: &mut Vec<Opt
 }
 
 fn log_unknown(parameter_bytes: &[u8], intermediary_bytes: &[u8], final_byte: u8) -> ControlType {
-    println!("unknown sequence: params: {:x?}, inter: {:x?}, final: {:x?}", parameter_bytes, intermediary_bytes, final_byte);
+    println!("unknown sequence: params: {:02X?}, inter: {:02X?}, final: {:02X?}", parameter_bytes, intermediary_bytes, final_byte);
     ControlType::Unknown
 }
 
@@ -251,5 +251,3 @@ fn get_parameter_default(buffer: &[Option<u16>], index: usize, default: u16) -> 
         None => default
     }
 }
-
-

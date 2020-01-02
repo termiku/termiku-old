@@ -329,7 +329,7 @@ impl Screen {
     }
     
     fn handle_special_byte(&mut self, byte: u8, rasterizer: &mut Rasterizer) {
-        println!("special byte received! {:x?}", byte);
+        println!("special byte received! {:#04X?}", byte);
         
         match byte {
             
