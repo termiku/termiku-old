@@ -156,7 +156,7 @@ impl CellState {
     
     // FIXME: pty_buffer::CellState::get_cell_from_parser_and_byte() probably shouldn't be marked inline...
     #[inline]
-    fn get_cell_from_parser_and_byte(mut parser: Utf8Parser, byte: u8) -> Self {
+    fn get_cell_from_parser_and_byte(mut parser: Utf8Parser, byte: u8) -> CellState {
         match parser.parse_byte(byte) {
             Ok(maybe_char) => match maybe_char {
                 Some(char) => CellState::Filled(char),
@@ -169,10 +169,10 @@ impl CellState {
                             Some(char) => CellState::Filled(char),
                             None => CellState::Filling(parser)
                         },
-                        Err(_) => Self::Invalid
+                        Err(_) => CellState::Invalid
                     }
                 } else {
-                    Self::Invalid
+                    CellState::Invalid
                 }
             }
         }
