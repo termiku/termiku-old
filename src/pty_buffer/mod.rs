@@ -229,7 +229,7 @@ pub struct Screen {
     pub line_cell_width: usize,
     pub line_cell_height: usize,
     pub history: VecDeque<CellLine>,
-    pub control_parser: ControlSeqenceParser,
+    pub control_parser: ControlSequenceParser,
     pub screen_lines: Vec<CellLine>,
     pub cursor: Cursor,
     pub alternative_screen_lines: Vec<CellLine>,
@@ -257,7 +257,7 @@ impl Screen {
             line_cell_width,
             line_cell_height,
             history,
-            control_parser: ControlSeqenceParser::new(),
+            control_parser: ControlSequenceParser::new(),
             
             screen_lines: screen_lines.clone(),
             cursor,
