@@ -46,12 +46,14 @@ impl Position {
 // Black is 0,0,0
 // White is 255, 255, 255
 #[derive(Copy, Clone, Debug)]
+// FIXME: pty_buffer::Color should have named fields instead of being a tuple struct.
 pub struct Color(pub u8, pub u8, pub u8, pub u8);
 
 pub const DEFAULT_FG: Color = Color(255, 255, 255, 255);
 
 impl Color {
     pub fn u8_to_f32(byte: u8) -> f32 {
+        // FIXME: pty_buffer::Color::u8_to_f32 has a redundant if block.
         if byte == 0 {
             0.0
         } else {
@@ -234,6 +236,7 @@ pub struct Screen {
     pub screen_lines: Vec<CellLine>,
     pub cursor: Cursor,
     pub alternative_screen_lines: Vec<CellLine>,
+    // FIXME Screen::alternative_cursor can probably be removed. The alternate screen switching should save/restore the cursor.
     pub alternative_cursor: Cursor,
     pub state: ScreenState,
 }
@@ -270,6 +273,7 @@ impl Screen {
         }
     }
     
+    // FIXME: Can Screen::update_line_cell_dimensions be removed?
     pub fn update_line_cell_dimensions(&mut self, _line_cell_size: RectSize) {
         // self.line_cell_height = line_cell_size.height as usize;
         // self.line_cell_width = line_cell_size.width as usize;
@@ -352,6 +356,7 @@ impl Screen {
             TABULATION_BYTE => {
                 let (_, column_number) = self.get_position_pointed_by_cursor();
                 
+                // FIXME: Screen::handle_special_byte tab calculation doesn't look correct to me...
                 let mut new_column = (column_number / TAB_LENGTH) * TAB_LENGTH + TAB_LENGTH;
                 
                 if new_column >= self.line_cell_width {
