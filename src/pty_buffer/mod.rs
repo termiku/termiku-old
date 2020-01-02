@@ -1,12 +1,12 @@
 mod handle_control_sequence;
 pub mod sgr;
 
-use crate::rasterizer::*;
-use crate::atlas::RectSize;
-use crate::unicode::*;
-use crate::control::*;
-
 use std::collections::VecDeque;
+
+use crate::atlas::RectSize;
+use crate::control::*;
+use crate::rasterizer::*;
+use crate::unicode::*;
 
 const BELL_BYTE: u8 = 0x07;
 const BACKSPACE_BYTE: u8 = 0x08;
@@ -154,6 +154,7 @@ impl CellState {
         Self::get_cell_from_parser_and_byte(parser, first_byte)
     }
     
+    // FIXME: pty_buffer::CellState::get_cell_from_parser_and_byte() probably shouldn't be marked inline...
     #[inline]
     fn get_cell_from_parser_and_byte(mut parser: Utf8Parser, byte: u8) -> Self {
         match parser.parse_byte(byte) {
@@ -287,7 +288,7 @@ impl Screen {
                         let mut buffer = self.control_parser.reset();
                         if *byte == CSI_1 {
                             self.control_parser.parse_byte(*byte)
-                                .expect("Can't parse a CSI after being reseted");
+                                .expect("Can't parse a CSI after being reset");
                         } else {
                             buffer.push(*byte);
                         }
@@ -299,7 +300,7 @@ impl Screen {
                 }
             } else if *byte == CSI_1 {
                 self.control_parser.parse_byte(*byte)
-                    .expect("Can't parse a CSI after being reseted");
+                    .expect("Can't parse a CSI after being reset");
             } else {
                 self.push_byte_to_screen(*byte, rasterizer);
             }
