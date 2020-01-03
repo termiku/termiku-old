@@ -4,13 +4,13 @@ pub mod event;
 
 use event::*;
 
-use crate::rasterizer::*;
-use crate::atlas::RectSize;
-use crate::unicode::*;
-use crate::control::*;
-
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
+
+use crate::atlas::RectSize;
+use crate::control::*;
+use crate::rasterizer::*;
+use crate::unicode::*;
 
 const BELL_BYTE: u8 = 0x07;
 const BACKSPACE_BYTE: u8 = 0x08;
@@ -50,12 +50,14 @@ impl Position {
 // Black is 0,0,0
 // White is 255, 255, 255
 #[derive(Copy, Clone, Debug)]
+// FIXME: pty_buffer::Color should have named fields instead of being a tuple struct.
 pub struct Color(pub u8, pub u8, pub u8, pub u8);
 
 pub const DEFAULT_FG: Color = Color(255, 255, 255, 255);
 
 impl Color {
     pub fn u8_to_f32(byte: u8) -> f32 {
+        // FIXME: pty_buffer::Color::u8_to_f32 has a redundant if block.
         if byte == 0 {
             0.0
         } else {
@@ -158,8 +160,9 @@ impl CellState {
         Self::get_cell_from_parser_and_byte(parser, first_byte)
     }
     
+    // FIXME: pty_buffer::CellState::get_cell_from_parser_and_byte() probably shouldn't be marked inline...
     #[inline]
-    fn get_cell_from_parser_and_byte(mut parser: Utf8Parser, byte: u8) -> Self {
+    fn get_cell_from_parser_and_byte(mut parser: Utf8Parser, byte: u8) -> CellState {
         match parser.parse_byte(byte) {
             Ok(maybe_char) => match maybe_char {
                 Some(char) => CellState::Filled(char),
@@ -172,10 +175,10 @@ impl CellState {
                             Some(char) => CellState::Filled(char),
                             None => CellState::Filling(parser)
                         },
-                        Err(_) => Self::Invalid
+                        Err(_) => CellState::Invalid
                     }
                 } else {
-                    Self::Invalid
+                    CellState::Invalid
                 }
             }
         }
@@ -233,10 +236,11 @@ pub struct Screen {
     pub line_cell_width: usize,
     pub line_cell_height: usize,
     pub history: VecDeque<CellLine>,
-    pub control_parser: ControlSeqenceParser,
+    pub control_parser: ControlSequenceParser,
     pub screen_lines: Vec<CellLine>,
     pub cursor: Cursor,
     pub alternative_screen_lines: Vec<CellLine>,
+    // FIXME Screen::alternative_cursor can probably be removed. The alternate screen switching should save/restore the cursor.
     pub alternative_cursor: Cursor,
     pub state: ScreenState,
     pub sender: Arc<Mutex<mio_extras::channel::Sender<ScreenEvent>>>,
@@ -263,7 +267,7 @@ impl Screen {
             line_cell_width,
             line_cell_height,
             history,
-            control_parser: ControlSeqenceParser::new(),
+            control_parser: ControlSequenceParser::new(),
             
             screen_lines: screen_lines.clone(),
             cursor,
@@ -277,6 +281,7 @@ impl Screen {
         }
     }
     
+    // FIXME: Can Screen::update_line_cell_dimensions be removed?
     pub fn update_line_cell_dimensions(&mut self, _line_cell_size: RectSize) {
         // self.line_cell_height = line_cell_size.height as usize;
         // self.line_cell_width = line_cell_size.width as usize;
@@ -295,7 +300,7 @@ impl Screen {
                         let mut buffer = self.control_parser.reset();
                         if *byte == CSI_1 {
                             self.control_parser.parse_byte(*byte)
-                                .expect("Can't parse a CSI after being reseted");
+                                .expect("Can't parse a CSI after being reset");
                         } else {
                             buffer.push(*byte);
                         }
@@ -307,7 +312,7 @@ impl Screen {
                 }
             } else if *byte == CSI_1 {
                 self.control_parser.parse_byte(*byte)
-                    .expect("Can't parse a CSI after being reseted");
+                    .expect("Can't parse a CSI after being reset");
             } else {
                 self.push_byte_to_screen(*byte, rasterizer);
             }
@@ -337,7 +342,7 @@ impl Screen {
     }
     
     fn handle_special_byte(&mut self, byte: u8, rasterizer: &mut Rasterizer) {
-        println!("special byte received! {:x?}", byte);
+        println!("special byte received! {:#04X?}", byte);
         
         match byte {
             
@@ -359,6 +364,7 @@ impl Screen {
             TABULATION_BYTE => {
                 let (_, column_number) = self.get_position_pointed_by_cursor();
                 
+                // FIXME: Screen::handle_special_byte tab calculation doesn't look correct to me...
                 let mut new_column = (column_number / TAB_LENGTH) * TAB_LENGTH + TAB_LENGTH;
                 
                 if new_column >= self.line_cell_width {

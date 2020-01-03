@@ -9,31 +9,43 @@ use std::ops::RangeInclusive;
 /// ESC
 pub const CSI_1: u8 = 0x1B;
 
-/// [
+/// '['
 const CSI_2: u8 = 0x5B;
 
+/// '0'
 const PARAMETER_START: u8 = 0x30;
+
+/// '?'
 const PARAMETER_END: u8 = 0x3F;
 
+/// "0123456789:;<=>?"
 const PARAMETER_RANGE: RangeInclusive<u8> = PARAMETER_START..=PARAMETER_END;
 
+/// ' '
 const INTERMEDIARY_START: u8 = 0x20;
+
+/// '/'
 const INTERMEDIARY_END: u8 = 0x2F;
 
+/// " !"#$%&'()*+,-./"
 const INTERMEDIARY_RANGE: RangeInclusive<u8> = INTERMEDIARY_START..=INTERMEDIARY_END;
 
+/// "@"
 const FINAL_START: u8 = 0x40;
+
+/// "~"
 const FINAL_END: u8 = 0x7E;
 
+/// "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 const FINAL_RANGE: RangeInclusive<u8> = FINAL_START..=FINAL_END;
 
 
 /// A control sequence parser, according to ECMA-48 definition (Section 5.4)
 /// 
 /// Parse bytes one by one with `parse_byte`.
-/// Should be externaly `reset`ed on error.
+/// `reset` should be called on error.
 #[derive(Debug)]
-pub struct ControlSeqenceParser {
+pub struct ControlSequenceParser {
     state: ParserState,
     buffer: Vec<u8>,
     parameter_length: usize,
@@ -62,7 +74,7 @@ pub enum ControlSequenceError {
 
 pub type ControlReturn =  Result<Option<ControlType>, ControlSequenceError>;
 
-impl ControlSeqenceParser {
+impl ControlSequenceParser {
     pub fn new() -> Self {
         Self {
             state: ParserState::NotParsing,
@@ -138,12 +150,16 @@ impl ControlSeqenceParser {
         }
     }
     
+    // FIXME: control::ControlSeqenceParser::reset() should really be called "flush", not reset.
     /// Clear the buffer and reset the parser state, returning the buffered bytes.
     pub fn reset(&mut self) -> Vec<u8> {
         self.state = ParserState::NotParsing;
         self.intermediary_length = 0;
         self.parameter_length = 0;
-        self.buffer.drain(0..self.buffer.len()).collect()
+        //self.buffer.drain(0..self.buffer.len()).collect()
+        let v = self.buffer.clone();
+        self.buffer.clear();
+        v
     }
     
     pub fn is_parsing(&self) -> bool {
