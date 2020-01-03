@@ -1,7 +1,7 @@
-use super::*;
-
 use crate::control::control_type::*;
 use crate::youtube::URL_PADDINGLESS_BASE64_RANGE;
+
+use super::*;
 
 use ControlType::*;
 

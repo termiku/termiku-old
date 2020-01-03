@@ -1,7 +1,8 @@
-use libc::*;
 use std::os::unix::io::AsRawFd;
-use parking_lot::RawMutex;
-use parking_lot::lock_api::RawMutex as _;
+
+use libc::*;
+
+use parking_lot::{lock_api::RawMutex as _, RawMutex};
 
 use crate::window::DEFAULT_BG;
 

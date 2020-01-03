@@ -1,8 +1,7 @@
 mod handle_control_sequence;
-pub mod sgr;
-pub mod event;
 
-use event::*;
+pub mod event;
+pub mod sgr;
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
@@ -11,6 +10,8 @@ use crate::atlas::RectSize;
 use crate::control::*;
 use crate::rasterizer::*;
 use crate::unicode::*;
+
+use event::*;
 
 const BELL_BYTE: u8 = 0x07;
 const BACKSPACE_BYTE: u8 = 0x08;

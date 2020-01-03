@@ -1,7 +1,8 @@
-use harfbuzz::sys::*;
 use std::sync::Arc;
-use harfbuzz::*;
 
+use harfbuzz::{*, sys::*};
+
+// FIXME: Replace with Option<T>..?
 type HBResult<T> = Result<T, ()>;
 
 pub fn create_harfbuzz_font(path: &str) -> HBResult<*mut hb_font_t> {

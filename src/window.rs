@@ -1,23 +1,22 @@
 // A good lot of this code is taken from glium/examples/image.rs
 // For now, we only want a window capable of receiving keyboard inputs as a basis for future work
-use crate::draw::*;
-use crate::term::*;
-use crate::config::*;
-use crate::atlas::RectSize;
-use crate::rasterizer::*;
-use crate::window_event::*;
+use std::io::Cursor;
+use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant, SystemTime};
 
-use mio_extras::channel::Sender;
-
-use glium::{glutin, Surface};
+use glium::{glutin, Display, Surface};
 use glium::glutin::event::{Event, StartCause, WindowEvent};
 use glium::glutin::event_loop::{ControlFlow, EventLoop};
 use glium::index::PrimitiveType;
-use glium::Display;
 
-use std::io::Cursor;
-use std::time::{Duration, Instant, SystemTime};
-use std::sync::{Arc, RwLock};
+use mio_extras::channel::Sender;
+
+use crate::atlas::RectSize;
+use crate::config::*;
+use crate::draw::*;
+use crate::rasterizer::*;
+use crate::term::*;
+use crate::window_event::*;
 
 pub const DEFAULT_BG: (f32, f32, f32, f32) = (0.0, 0.0, 0.0, 0.5);
 

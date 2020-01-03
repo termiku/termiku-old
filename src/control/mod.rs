@@ -1,10 +1,11 @@
 mod recognize;
+
 pub mod control_type;
 
-use recognize::*;
-use control_type::*;
-
 use std::ops::RangeInclusive;
+
+use control_type::*;
+use recognize::*;
 
 /// ESC
 pub const CSI_1: u8 = 0x1B;

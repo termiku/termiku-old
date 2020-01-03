@@ -1,11 +1,12 @@
-use libc;
-
 use std::collections::HashMap;
 use std::io;
 use std::mem;
 use std::os::unix::{io::*, process::CommandExt};
 use std::process::{Child, Command, Stdio};
 use std::ptr;
+
+use libc;
+
 
 /* NOTE(LunarLambda):
  * As an alternative to the both outdated and uncomfortable "master/slave" terminology,
