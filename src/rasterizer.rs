@@ -1,17 +1,17 @@
+use std::ptr::NonNull;
+use std::sync::{Arc, Mutex, RwLock};
+
+use ::freetype::freetype::*;
+
+use glium::Display;
+
+use ::harfbuzz::{Buffer, sys::*};
+
 use crate::atlas::RectSize;
 use crate::config::Config;
 use crate::freetype::*;
 use crate::harfbuzz::*;
 use crate::pty_buffer::*;
-
-use glium::Display;
-
-use ::freetype::freetype::*;
-use ::harfbuzz::sys::*;
-use ::harfbuzz::Buffer;
-
-use std::sync::{Arc, Mutex, RwLock};
-use std::ptr::NonNull;
 
 // Struct containing a character, should be populated with colors, transformations, and such later on
 // Maybe going to need the font info too when multifont ?

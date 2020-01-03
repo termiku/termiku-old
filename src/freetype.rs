@@ -1,5 +1,6 @@
-use ::freetype::freetype::*;
 use std::ffi::CString;
+
+use ::freetype::freetype::*;
 
 use crate::atlas::RectSize;
 

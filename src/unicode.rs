@@ -1,7 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
-// UTF-8 PARSER
-////////////////////////////////////////////////////////////////////////////////
-type Result = ::std::result::Result<Option<char>, Utf8ParserError>;
+type Result = std::result::Result<Option<char>, Utf8ParserError>;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Utf8ParserError {

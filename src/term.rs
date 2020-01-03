@@ -1,22 +1,19 @@
 //! Contains the data structures for controlling several terminals at once (for example, for
 //! tabbing support)
 
-use crate::pty::PtyWithProcess;
-use crate::pty;
-use crate::pty_buffer::{PtyBuffer, event::*};
+use std::io::{self, Read, Write};
+use std::os::unix::io::RawFd;
+use std::sync::{Arc, RwLock};
+
+use mio::{Events, Poll, PollOpt, Ready, Token, unix::EventedFd};
+use mio_extras::channel::{channel, Sender};
+
 use crate::config::*;
+use crate::pty::{self, PtyWithProcess};
+use crate::pty_buffer::{event::*, PtyBuffer};
 use crate::rasterizer::*;
 use crate::window_event::*;
 use crate::youtube::*;
-
-use mio::unix::EventedFd;
-use mio::{Events, Poll, PollOpt, Ready, Token};
-use mio_extras::channel::{channel, Sender};
-
-use std::io;
-use std::io::{Read, Write};
-use std::os::unix::io::RawFd;
-use std::sync::{Arc, RwLock, Mutex};
 
 // Input received from Window
 const RECEIVER_TOKEN: usize = 0;
@@ -467,4 +464,3 @@ fn handle_screen_event(event: ScreenEvent, termlist: &mut TermList) {
         }
     }
 }
-

@@ -6,25 +6,23 @@
 #[macro_use]
 extern crate glium;
 
-pub mod pty;
-
-// Allowed because of the implement_vertex! macro which will trigger this clippy lint, outside
-// of our control
-#[allow(clippy::unneeded_field_pattern)]
-pub mod window;
-pub mod freetype;
-pub mod harfbuzz;
-pub mod config;
 pub mod atlas;
-
+pub mod config;
+pub mod control;
 // Allowed because of the implement_vertex! macro which will trigger this clippy lint, outside
 // of our control
 #[allow(clippy::unneeded_field_pattern)]
 pub mod draw;
+pub mod freetype;
+pub mod harfbuzz;
+pub mod pty;
 pub mod pty_buffer;
-pub mod term;
 pub mod rasterizer;
-pub mod window_event;
+pub mod term;
 pub mod unicode;
-pub mod control;
+// Allowed because of the implement_vertex! macro which will trigger this clippy lint, outside
+// of our control
+#[allow(clippy::unneeded_field_pattern)]
+pub mod window;
+pub mod window_event;
 pub mod youtube;

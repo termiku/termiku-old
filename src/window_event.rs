@@ -1,4 +1,4 @@
-use glium::glutin::event::{KeyboardInput, ElementState, VirtualKeyCode };
+use glium::glutin::event::{ElementState, KeyboardInput, VirtualKeyCode };
 
 const UP_CONTROL_SEQUENCE:      &str = "\x1B[A";
 const DOWN_CONTROL_SEQUENCE:    &str = "\x1B[B";

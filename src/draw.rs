@@ -1,14 +1,14 @@
-use crate::atlas::*;
-use crate::rasterizer::*;
-use crate::config::*;
-use crate::pty_buffer::*;
-use crate::pty_buffer::sgr::SimpleColor;
+use std::sync::{Arc, RwLock};
 
-use glium::{Display, Frame, VertexBuffer, DrawParameters, Surface, index::NoIndices};
+use glium::{Display, DrawParameters, Frame, Surface, VertexBuffer};
+use glium::index::NoIndices;
 use glium::program::Program;
 use glium::uniforms::Uniforms;
 
-use std::sync::{Arc, RwLock};
+use crate::atlas::*;
+use crate::config::*;
+use crate::pty_buffer::{*, sgr::SimpleColor};
+use crate::rasterizer::*;
 
 #[derive(Copy, Clone, Debug)]
 struct CharVertex {
