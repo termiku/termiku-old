@@ -27,3 +27,4 @@ pub mod rasterizer;
 pub mod window_event;
 pub mod unicode;
 pub mod control;
+pub mod youtube;

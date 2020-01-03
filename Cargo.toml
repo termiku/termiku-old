@@ -17,3 +17,5 @@ mio = "0.6"
 mio-extras = "2.0.5"
 serde = { version = "1.0", features  = ["derive"] }
 toml = "0.5"
+vlc-rs = "0.3.0"
+parking_lot = "0.10.0"

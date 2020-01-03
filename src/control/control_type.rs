@@ -127,4 +127,14 @@ pub enum ControlType {
     ///   
     /// Note: Not documented by ECMA-48  
     RestoreCursor,
+    
+    
+    
+    
+    // Termiku's private control sequnces
+    
+    /// TYP
+    /// CSI 0x79
+    /// CSI y
+    TermikuYoutubePlayback([u8; 11])
 }
