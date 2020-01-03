@@ -1,7 +1,11 @@
 mod handle_control_sequence;
 pub mod sgr;
+pub mod event;
+
+use event::*;
 
 use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 
 use crate::atlas::RectSize;
 use crate::control::*;
@@ -239,10 +243,12 @@ pub struct Screen {
     // FIXME Screen::alternative_cursor can probably be removed. The alternate screen switching should save/restore the cursor.
     pub alternative_cursor: Cursor,
     pub state: ScreenState,
+    pub sender: Arc<Mutex<mio_extras::channel::Sender<ScreenEvent>>>,
+    pub id: usize
 }
 
 impl Screen {
-    pub fn empty(rasterizer: &mut Rasterizer) -> Self {
+    pub fn empty(sender: mio_extras::channel::Sender<ScreenEvent>, rasterizer: &mut Rasterizer, id: usize) -> Self {
         let line_cell_size = rasterizer.get_line_cell_size();
         
         let line_cell_width = line_cell_size.width as usize;
@@ -269,7 +275,9 @@ impl Screen {
             alternative_screen_lines: screen_lines,
             alternative_cursor: cursor,
             
-            state: ScreenState::default()
+            state: ScreenState::default(),
+            sender: Arc::new(Mutex::new(sender)),
+            id
         }
     }
     
@@ -429,12 +437,12 @@ impl Screen {
 pub struct PtyBuffer {
     rasterizer: WrappedRasterizer,
     screen: Screen,
-    updated: bool
+    updated: bool,
 }
 
 impl PtyBuffer {
-    pub fn new(rasterizer: WrappedRasterizer) -> PtyBuffer {    
-        let screen = Screen::empty(&mut rasterizer.write().unwrap());
+    pub fn new(rasterizer: WrappedRasterizer, sender: mio_extras::channel::Sender<ScreenEvent>, id: usize) -> PtyBuffer {    
+        let screen = Screen::empty(sender, &mut rasterizer.write().unwrap(), id);
         
         Self {
             rasterizer,

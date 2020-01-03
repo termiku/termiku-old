@@ -3,10 +3,11 @@
 
 use crate::pty::PtyWithProcess;
 use crate::pty;
-use crate::pty_buffer::PtyBuffer;
+use crate::pty_buffer::{PtyBuffer, event::*};
 use crate::config::*;
 use crate::rasterizer::*;
 use crate::window_event::*;
+use crate::youtube::*;
 
 use mio::unix::EventedFd;
 use mio::{Events, Poll, PollOpt, Ready, Token};
@@ -15,19 +16,21 @@ use mio_extras::channel::{channel, Sender};
 use std::io;
 use std::io::{Read, Write};
 use std::os::unix::io::RawFd;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, Mutex};
 
 // Input received from Window
 const RECEIVER_TOKEN: usize = 0;
 // Input received from stdin
 const STDIN_TOKEN:    usize = 1;
+// Input received from a PryBuffer::Screen, mainly after receiving a control sequence
+const SCREEN_TOKEN:   usize = 2;
 
 // Raw file descriptor for stdin (POSIX)
 // See 5th paragraph in man 3 stdin (http://man7.org/linux/man-pages/man3/stdin.3.html)
 const STDIN_FD: RawFd = 0;
 
-// 0 and 1 are reserved
-const FIRST_TERMINAL_UID: usize = 2;
+// 0, 1 and 2 are reserved
+const FIRST_TERMINAL_UID: usize = 3;
 
 pub struct Term {
     /// The process and pseudoterminal descriptors for this terminal.
@@ -38,7 +41,9 @@ pub struct Term {
     
     /// Unique identifier for this terminal, supplied by the TermFactory.
     pub uid: usize,
-
+    
+    pub youtube: Option<WrappedYoutubeDlVlcInstance>,
+    
     /*
     /// We may want to implement visual bells (\a / 0x07 / ^G), like flashing the tab.
     alerted: bool,
@@ -151,7 +156,8 @@ pub struct TermManager {
     config: Config,
     factory: TermFactory,
     poll: Arc<Poll>,
-    sender: Sender<TermikuWindowEvent>,
+    screen_sender: Sender<ScreenEvent>,
+    window_sender: Sender<TermikuWindowEvent>,
     list: WrappedTermList,
 }
 
@@ -166,14 +172,17 @@ impl TermManager {
         let poll = Arc::new(Poll::new().unwrap());
         let mut events = Events::with_capacity(1024);
         
-        // Channel used for receiving channel events
-        let (sender, receiver) = channel::<TermikuWindowEvent>();
+        // Channel for receiving pty_buffers's screen events
+        let (screen_sender, screen_receiver) = channel::<ScreenEvent>();
+        
+        // Channel used for receiving window events
+        let (window_sender, window_receiver) = channel::<TermikuWindowEvent>();
         
         let termlist = Arc::new(RwLock::new(TermList::new()));
         
         // Register the receiver of Termiku's window input
         poll.register(
-            &receiver,
+            &window_receiver,
             Token(RECEIVER_TOKEN),
             Ready::readable(),
             PollOpt::edge(),
@@ -188,6 +197,13 @@ impl TermManager {
             PollOpt::edge(),
         )
         .unwrap();
+        
+        poll.register(
+            &screen_receiver,
+            Token(SCREEN_TOKEN),
+            Ready::readable(),
+            PollOpt::edge()
+        ).unwrap();
         
         let cloned_poll = poll.clone();
         let cloned_termlist = termlist.clone();
@@ -204,7 +220,7 @@ impl TermManager {
                         // Should panic if poisoned.
                         let mut handle = cloned_termlist.write().unwrap();
                         
-                        while let Ok(event) = receiver.try_recv() {
+                        while let Ok(event) = window_receiver.try_recv() {
                             handle_window_event(event, &mut handle, &mut char_buffer);
                         }
                     // This is input from the shell who started Termiku. We redirect to the active term
@@ -216,6 +232,14 @@ impl TermManager {
                         
                         while let Ok(amount) = io::stdin().read(&mut buffer) {
                             handle.write_buffer_to_active_pty(&buffer[0..amount]);
+                        }
+                    // This is input from a screen
+                    } else if event.token() == Token(SCREEN_TOKEN) && event.readiness().is_readable() {
+                        // Should panic if poisoned.
+                        let mut handle = cloned_termlist.write().unwrap();
+                        
+                        while let Ok(event) = screen_receiver.try_recv() {
+                            handle_screen_event(event, &mut handle);
                         }
                     // This is output from a pty.
                     // We write it to a PtyBuffer, and to Termiku's STDOUT
@@ -248,13 +272,14 @@ impl TermManager {
             });
         }
         
-        let factory = TermFactory::new(config.clone(), rasterizer);
+        let factory = TermFactory::new(config.clone(), rasterizer, screen_sender.clone());
         
         let mut term_manager = Self {
             config,
             factory,
             poll,
-            sender,
+            screen_sender,
+            window_sender,
             list: termlist
         };
         
@@ -289,7 +314,7 @@ impl TermManager {
     
     pub fn send_event(&mut self, event: TermikuWindowEvent) {
         // Should panic if poisoned.
-        self.sender.send(event).unwrap();
+        self.window_sender.send(event).unwrap();
     }
     
     pub fn get_lines_from_active(&mut self, start: usize, end: usize) -> Option<Vec<DisplayCellLine>> {
@@ -318,6 +343,21 @@ impl TermManager {
         match list.get_active_mut() {
             Some(term) => term.buffer.get_range(start, end),
             None => vec![]
+        }
+    }
+    
+    pub fn get_youtube_frame_from_active(&mut self) -> Option<Vec<u8>> {
+        let list = self.list.write().unwrap();
+        
+        match list.get_active() {
+            Some(term) => match &term.youtube {
+                Some(youtube) => {
+                    let mut youtube_handle = youtube.0.lock().unwrap();
+                    Some(youtube_handle.player.get_frame())
+                }
+                None => None
+            },
+            None => None
         }
     }
     
@@ -355,20 +395,26 @@ impl TermManager {
 pub struct TermFactory {
     rasterizer: WrappedRasterizer,
     config: Config,
-    count: usize
+    count: usize,
+    sender: mio_extras::channel::Sender<ScreenEvent>
 }
 
 impl TermFactory {
-    pub fn new(config: Config, rasterizer: WrappedRasterizer) -> Self {
+    pub fn new(config: Config, rasterizer: WrappedRasterizer, sender: mio_extras::channel::Sender<ScreenEvent>) -> Self {
         TermFactory {
             config,
             rasterizer,
-            count: FIRST_TERMINAL_UID
+            count: FIRST_TERMINAL_UID,
+            sender
         }
     }
 
     /// Wraps a ProcessWithPty in a Term struct with a new uid.
     pub fn make_term(&mut self) -> Term {
+        if self.count == usize::max_value() {
+            panic!("Exhausted Term UIds.");
+        }
+        
         let pty = pty::spawn_process(
             &self.config.shell.program,
             self.config.shell.args.as_slice(),
@@ -376,14 +422,12 @@ impl TermFactory {
             self.rasterizer.read().unwrap().get_winsize()
         ).unwrap();
         
-        let buffer = PtyBuffer::new(self.rasterizer.clone());
+        let buffer = PtyBuffer::new(self.rasterizer.clone(), self.sender.clone(), self.count);
 
-        if self.count == usize::max_value() {
-            panic!("Exhausted Term UIds.");
-        }
-
+        
         let term = Term {
             pty,
+            youtube: None,
             buffer,
             uid: self.count,
             to_remove: false,
@@ -400,6 +444,27 @@ fn handle_window_event(event: TermikuWindowEvent, termlist: &mut TermList, char_
     match event {
         CharacterInput(character) => termlist.write_buffer_to_active_pty(character.encode_utf8(char_buffer).as_bytes()),
         KeyboardArrow(arrow) => termlist.write_buffer_to_active_pty(arrow.to_control_sequence().as_bytes()),
+    }
+}
+
+fn handle_screen_event(event: ScreenEvent, termlist: &mut TermList) {
+    use ScreenEventType::*;
+    
+    match event.event {
+        PlayYoutubeVideo(video_id) => {
+            let term = termlist.get_uid_mut(event.terminal_id);   
+            if let Some(term) = term {
+                if let Some(youtube) = term.youtube.take() {
+                    youtube.0.lock().unwrap().cleanup();
+                }
+                
+                let ytdl = YoutubeDlInstance::new(&video_id);
+                
+                term.youtube = Some(
+                    WrappedYoutubeDlVlcInstance::new(ytdl)
+                )
+            }
+        }
     }
 }
 
