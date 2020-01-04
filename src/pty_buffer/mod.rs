@@ -298,7 +298,7 @@ impl Screen {
                         }
                     },
                     Err(_) => {
-                        let mut buffer = self.control_parser.reset();
+                        let mut buffer = self.control_parser.flush();
                         if *byte == CSI_1 {
                             self.control_parser.parse_byte(*byte)
                                 .expect("Can't parse a CSI after being reset");

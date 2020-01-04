@@ -86,6 +86,9 @@ impl ControlSequenceParser {
         }
     }
     
+    
+    
+    
     /// Parse one byte of a control sequence.
     /// 
     /// If no problem was detected, will return an `Ok(Option<ControlType>)`.
@@ -151,9 +154,7 @@ impl ControlSequenceParser {
         }
     }
     
-    // FIXME: control::ControlSeqenceParser::reset() should really be called "flush", not reset.
-    /// Clear the buffer and reset the parser state, returning the buffered bytes.
-    pub fn reset(&mut self) -> Vec<u8> {
+    pub fn flush(&mut self) -> Vec<u8> {
         self.state = ParserState::NotParsing;
         self.intermediary_length = 0;
         self.parameter_length = 0;
@@ -182,7 +183,7 @@ impl ControlSequenceParser {
         let control_type = interpret_long_control(parameter_bytes, intermediary_bytes, *final_byte, &mut self.parameters_buffer);
         
     
-        self.reset();    
+        self.flush();    
         control_type        
     }
     
