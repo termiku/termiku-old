@@ -56,7 +56,7 @@ impl Utf8Parser {
 
             // We subtract 1 and treat it as the number of bytes following this one.
             self.length = utf8_length(byte) - 1;
-            self.value  = (byte & LEAD_MASK[self.length as usize]) as u32;
+            self.value  = (byte & LEAD_MASK[self.length as usize - 1]) as u32;
 
             // Parsing is Ok, but we don't have a full char yet.
             Ok(None)
