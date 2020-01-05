@@ -19,12 +19,15 @@
 
 // See https://bjoern.hoehrmann.de/utf-8/decoder/dfa/ for more information on how this works.
 
+/// Decoder ground state.
 const OK: u8 =   0;
-const RJ: u8 =  96;
+/// Decoder error state.
+const ER: u8 =  96;
+/// Decoder error state. Offending byte should be passed in again ("rewind")
 const RW: u8 = 108;
 
 const UTF8_TABLE: [u8; 256+96] = [
-    // Byte to character class translation
+    // Maps bytes to character classes
      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x00
      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -42,28 +45,15 @@ const UTF8_TABLE: [u8; 256+96] = [
     10, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 3, 3, // 0xE0
     11, 6, 6, 6, 5, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, // 0xF0
 
-    // State + character class to state translation
-    /*   0 - OK (Done)
-     *  12 - 1 byte  needed
-     *  24 - 2 bytes needed
-     *  36 - 2 bytes needed (E0 lead)
-     *  48 - 2 bytes needed (ED lead)
-     *  60 - 3 bytes needed (F0 lead)
-     *  72 - 3 bytes needed
-     *  84 - 3 bytes needed (F4 lead)
-     *  96 - RJ (Error)
-     * 108 - RW (Rewind)
-     *
-     0   1   2   3   4   5   6   7   8   9  10  11  // Character class
-     */
-    OK, RJ, 12, 24, 48, 84, 72, RJ, RJ, RJ, 36, 60, // State   0
-    RW, OK, RW, RW, RW, RW, RW, OK, RW, OK, RW, RW, // State  12
-    RW, 12, RW, RW, RW, RW, RW, 12, RW, 12, RW, RW, // State  24
-    RW, RW, RW, RW, RW, RW, RW, 12, RW, RW, RW, RW, // State  36
-    RW, 12, RW, RW, RW, RW, RW, RW, RW, 12, RW, RW, // State  48
-    RW, RW, RW, RW, RW, RW, RW, 24, RW, 24, RW, RW, // State  60
-    RW, 24, RW, RW, RW, RW, RW, 24, RW, 24, RW, RW, // State  72
-    RW, 24, RW, RW, RW, RW, RW, RW, RW, RW, RW, RW, // State  84
+    // Maps state (row) + character class (column) to next state
+    OK, ER, 12, 24, 48, 84, 72, ER, ER, ER, 36, 60, //  0 - OK
+    RW, OK, RW, RW, RW, RW, RW, OK, RW, OK, RW, RW, // 12 - 1 byte  needed
+    RW, 12, RW, RW, RW, RW, RW, 12, RW, 12, RW, RW, // 24 - 2 bytes needed
+    RW, RW, RW, RW, RW, RW, RW, 12, RW, RW, RW, RW, // 36 - 2 bytes needed, E0 lead
+    RW, 12, RW, RW, RW, RW, RW, RW, RW, 12, RW, RW, // 48 - 2 bytes needed, ED lead
+    RW, RW, RW, RW, RW, RW, RW, 24, RW, 24, RW, RW, // 60 - 3 bytes needed, F0 lead
+    RW, 24, RW, RW, RW, RW, RW, 24, RW, 24, RW, RW, // 72 - 3 bytes needed
+    RW, 24, RW, RW, RW, RW, RW, RW, RW, RW, RW, RW, // 84 - 3 bytes needed, F4 lead
 ];
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -96,8 +86,14 @@ impl UTF8Decoder {
         
         self.code_point =
             if self.state == OK {
+                // The character class values for leading bytes simultaneously form a bitmask.
+                // For class 0, this is a no-op
+                // For classes > 7, this is 0 (continuations & invalid bytes)
                 (0xFF >> class) & byte as u32
             } else {
+                // Standard continuation byte extraction.
+                // It's okay if this is gibberish due to invalid input,
+                // errors reset state to OK, and code_point gets cleared on the next input.
                 (self.code_point << 6) | (byte as u32 & 0x3F)
             };
         
@@ -108,7 +104,7 @@ impl UTF8Decoder {
             match self.state {
                 // Surrogate or out of bounds code points will be rejected, so this is safe.
                 OK => DecodeState::Done(std::char::from_u32_unchecked(self.code_point)),
-                RJ => { self.reset(); DecodeState::Error  },
+                ER => { self.reset(); DecodeState::Error  },
                 RW => { self.reset(); DecodeState::Rewind },
                 _  => DecodeState::Continue
             }
