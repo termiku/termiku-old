@@ -46,7 +46,7 @@ unsafe extern "C" fn lock_callback(object: *mut c_void, planes: *mut c_void) -> 
     std::ptr::null_mut()
 }
 
-unsafe extern "C" fn unlock_callback(object: *mut c_void, picture: *mut c_void, planes: *const *mut c_void) {
+unsafe extern "C" fn unlock_callback(object: *mut c_void, _picture: *mut c_void, _planes: *const *mut c_void) {
     let this = &mut *(object as *mut VlcVideoPlayer);
     
     this.need_update = true;
@@ -54,7 +54,7 @@ unsafe extern "C" fn unlock_callback(object: *mut c_void, picture: *mut c_void, 
     this.mutex.unlock();
 }
 
-unsafe extern "C" fn display_callback(object: *mut c_void, picture: *mut c_void) {
+unsafe extern "C" fn display_callback(_object: *mut c_void, _picture: *mut c_void) {
     
 }
 

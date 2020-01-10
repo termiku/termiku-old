@@ -41,7 +41,7 @@ pub fn window(config: Config) {
     let glium_image =
         glium::texture::RawImage2d::from_raw_rgba_reversed(&image.into_raw(), dimensions);
 
-    let opengl_texture =
+    let _opengl_texture =
         glium::texture::CompressedSrgbTexture2d::new(&display, glium_image).unwrap();
     let vertex_buffer = {
         #[derive(Copy, Clone)]
