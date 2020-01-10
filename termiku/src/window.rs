@@ -31,7 +31,7 @@ pub fn window(config: Config) {
     let display = glium::Display::new(window_builder, context_builder, &events_loop).unwrap();
     
     let image = image::load(
-        Cursor::new(&include_bytes!("../images/miku.jpg")[..]),
+        Cursor::new(&include_bytes!("../../images/miku.jpg")[..]),
         image::JPEG,
     )
     .unwrap()
