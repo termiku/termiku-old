@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use crate::atlas::RectSize;
 use crate::control::*;
 use crate::rasterizer::*;
-use crate::unicode::*;
+use crate::utf8::*;
 
 use event::*;
 
@@ -150,38 +150,31 @@ impl CharacterGroup {
 #[derive(Copy, Clone, Debug)]
 pub enum CellState {
     Empty,
-    Filling(Utf8Parser),
+    Filling(UTF8Decoder),
     Filled(char),
     Invalid
 }
 
 impl CellState {    
     fn get_start(first_byte: u8) -> Self {
-        let parser = Utf8Parser::new();
+        let parser = UTF8Decoder::new();
         Self::get_cell_from_parser_and_byte(parser, first_byte)
     }
     
     // FIXME: pty_buffer::CellState::get_cell_from_parser_and_byte() probably shouldn't be marked inline...
     #[inline]
-    fn get_cell_from_parser_and_byte(mut parser: Utf8Parser, byte: u8) -> CellState {
-        match parser.parse_byte(byte) {
-            Ok(maybe_char) => match maybe_char {
-                Some(char) => CellState::Filled(char),
-                None => CellState::Filling(parser)
-            },
-            Err(err) => {
-                if let Utf8ParserError::InvalidContinuationByte = err {
-                    match parser.parse_byte(byte) {
-                        Ok(maybe_char) => match maybe_char {
-                            Some(char) => CellState::Filled(char),
-                            None => CellState::Filling(parser)
-                        },
-                        Err(_) => CellState::Invalid
-                    }
-                } else {
-                    CellState::Invalid
+    fn get_cell_from_parser_and_byte(mut decoder: UTF8Decoder, byte: u8) -> CellState {
+        match decoder.decode_byte(byte) {
+            DecodeState::Continue => CellState::Filling(decoder),
+            DecodeState::Done(c) => CellState::Filled(c),
+            DecodeState::Rewind => {
+                match decoder.decode_byte(byte) {
+                    DecodeState::Continue => CellState::Filling(decoder),
+                    DecodeState::Done(c)  => CellState::Filled(c),
+                    _                     => CellState::Invalid
                 }
-            }
+            },
+            DecodeState::Error => CellState::Invalid
         }
     }
     

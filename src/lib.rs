@@ -19,7 +19,7 @@ pub mod pty;
 pub mod pty_buffer;
 pub mod rasterizer;
 pub mod term;
-pub mod unicode;
+pub mod utf8;
 // Allowed because of the implement_vertex! macro which will trigger this clippy lint, outside
 // of our control
 #[allow(clippy::unneeded_field_pattern)]
