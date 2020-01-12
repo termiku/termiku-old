@@ -24,7 +24,7 @@ pub fn window(config: Config) {
     let window_builder = glutin::window::WindowBuilder::new()
         .with_inner_size(glutin::dpi::LogicalSize::new(1280.0, 720.0))
         .with_title("mou ikkai")
-        .with_transparent(true);
+        .with_transparent(config.transparent);
     let context_builder = glutin::ContextBuilder::new();
     
     let display = glium::Display::new(window_builder, context_builder, &events_loop).unwrap();

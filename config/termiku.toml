@@ -1,3 +1,5 @@
+transparent = false
+
 # Environment variables
 [env]
 TERM = "termiku"
