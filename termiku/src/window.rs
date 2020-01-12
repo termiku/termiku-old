@@ -1,6 +1,5 @@
 // A good lot of this code is taken from glium/examples/image.rs
 // For now, we only want a window capable of receiving keyboard inputs as a basis for future work
-use std::io::Cursor;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant, SystemTime};
 
@@ -30,19 +29,6 @@ pub fn window(config: Config) {
     
     let display = glium::Display::new(window_builder, context_builder, &events_loop).unwrap();
     
-    let image = image::load(
-        Cursor::new(&include_bytes!("../../images/miku.jpg")[..]),
-        image::JPEG,
-    )
-    .unwrap()
-    .to_rgba();
-
-    let dimensions = image.dimensions();
-    let glium_image =
-        glium::texture::RawImage2d::from_raw_rgba_reversed(&image.into_raw(), dimensions);
-
-    let _opengl_texture =
-        glium::texture::CompressedSrgbTexture2d::new(&display, glium_image).unwrap();
     let vertex_buffer = {
         #[derive(Copy, Clone)]
         struct Vertex {
