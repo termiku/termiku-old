@@ -5,7 +5,7 @@ transparent = false
 TERM = "termiku"
 
 [shell]
-program = "sh"
+program = "zsh"
 args = []
 
 [font]
