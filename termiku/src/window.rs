@@ -88,7 +88,8 @@ pub fn window(config: Config) {
                        void main() {{
                            f_color = vec4(texture(tex, v_tex_coords).xyz, {});
                        }}
-                   ", DEFAULT_BG.3)
+                   ", DEFAULT_BG.3),
+        outputs_srgb: true
     })
     .unwrap();
 
