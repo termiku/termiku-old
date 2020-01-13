@@ -1,0 +1,5 @@
+#!/bin/bash
+for i in 16 {232..255} 231; do
+    echo -en "\e[48;5;${i}m  "
+done
+echo -e '\e[m'

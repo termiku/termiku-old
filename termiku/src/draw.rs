@@ -77,7 +77,9 @@ impl ProgramWrapper {
                     void main() {
                         f_colour = v_colour * vec4(1.0, 1.0, 1.0, texture(tex, v_tex_coords).r);
                     }
-                "
+                ",
+                
+                outputs_srgb: true
         })
         .unwrap();
         

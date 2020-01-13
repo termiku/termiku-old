@@ -8,7 +8,8 @@ use serde::Deserialize;
 pub struct Config {
     pub env: Option<HashMap<String, String>>,
     pub font: FontConfig,
-    pub shell: ShellConfig
+    pub shell: ShellConfig,
+    pub transparent: bool
 }
 
 #[derive(Deserialize, Debug, Clone)]

@@ -1,9 +1,11 @@
+transparent = false
+
 # Environment variables
 [env]
 TERM = "termiku"
 
 [shell]
-program = "sh"
+program = "zsh"
 args = []
 
 [font]
