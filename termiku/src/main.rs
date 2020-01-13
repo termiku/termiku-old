@@ -16,7 +16,7 @@ fn main() {
                             .long("config")
                             .value_name("PATH")
                             .help("Path to the configuration file to use.")
-                            .default_value("../config/termiku.toml"))
+                            .default_value("config/termiku.toml"))
                     .arg(Arg::with_name("youtube")
                             .long("youtube")
                             .value_name("YOUTUBE_ID")
